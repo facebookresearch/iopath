@@ -1,0 +1,27 @@
+package:
+  name: iopath
+  version: "{{ environ.get('BUILD_VERSION') }}"
+
+source:
+ path: ../..
+
+requirements:
+
+  host:
+    - python
+    - setuptools
+
+  run:
+    - python
+    - tqdm
+    - portalocker
+
+build:
+  string: py{{py}}
+  script: BUILD_NIGHTLY=1 python setup.py install --single-version-externally-managed --record=record.txt # [not win]
+
+about:
+  home: https://github.com/facebookresearch/iopath
+  license: MIT
+  license_file: LICENSE
+  summary: "A library for providing I/O abstraction."
