@@ -11,6 +11,7 @@ from unittest.mock import MagicMock, patch
 
 from iopath.common import file_io
 from iopath.common.file_io import HTTPURLHandler, LazyPath, PathManager, get_cache_dir
+from iopath.common.file_io import PathManagerFactory, g_pathmgr
 
 
 class TestNativeIO(unittest.TestCase):
@@ -38,6 +39,18 @@ class TestNativeIO(unittest.TestCase):
         # pyre-ignore
         with self._pathmgr.open(self._tmpfile, "r") as f:
             self.assertEqual(f.read(), self._tmpfile_contents)
+
+    def test_factory_open(self) -> None:
+        with g_pathmgr.open(self._tmpfile, "r") as f:
+            self.assertEqual(f.read(), self._tmpfile_contents)
+
+        _pathmgr = PathManagerFactory.get("test_pm")
+        with _pathmgr.open(self._tmpfile, "r") as f:
+            self.assertEqual(f.read(), self._tmpfile_contents)
+
+        PathManagerFactory.remove("test_pm")
+
+
 
     def test_open_args(self) -> None:
         self._pathmgr.set_strict_kwargs_checking(True)

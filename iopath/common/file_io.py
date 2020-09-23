@@ -893,3 +893,47 @@ class and call methods on the instantiated object.
   _pathmgr.mkdir(<dir-path>)
 
 """
+
+
+class PathManagerFactory:
+    """
+    PathManagerFactory is the class responsible for creating new PathManager
+    instances and removing them when no longer needed.
+    PathManager can be instantiated directly too, but it is recommended that
+    you use PathManagerFactory to create them.
+    """
+
+
+    GLOBAL_PATH_MANAGER = "global_path_manager"
+    pm_list = {}
+
+    @staticmethod
+    def get(key = GLOBAL_PATH_MANAGER):
+        """
+        Get the path manager instance associated with a key.
+        A new instance will be created if there is no existing
+        instance associated with the key passed in.
+        Args:
+            key (str):
+        """
+        if key not in PathManagerFactory.pm_list:
+            PathManagerFactory.pm_list[key] = PathManager()
+        return PathManagerFactory.pm_list[key]
+
+    @staticmethod
+    def remove(key):
+        """
+        Remove the path manager instance associated with a key.
+        Args:
+            key (str):
+        """
+        if key in PathManagerFactory.pm_list:
+            _pm = PathManagerFactory.pm_list.pop(key)
+            del _pm
+
+"""
+A global instance of PathManager.
+This global instance is provided for backward compatibility, but it is
+recommended that clients use PathManagerFactory
+"""
+g_pathmgr = PathManagerFactory.get()
