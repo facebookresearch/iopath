@@ -7,7 +7,7 @@ import os
 import shutil
 import traceback
 from collections import OrderedDict
-from typing import IO, Any, Callable, Dict, List, MutableMapping, Optional, Union
+from typing import IO, Any, Callable, Dict, List, MutableMapping, Optional, Union, Iterable
 from urllib.parse import urlparse
 
 import portalocker  # type: ignore
@@ -185,6 +185,9 @@ class PathHandler:
         """
         raise NotImplementedError()
 
+    def _opent(self, path: str, mode: str = "r", **kwargs: Any) -> Iterable[Any]:
+        raise NotImplementedError()
+
     def _open(
         self, path: str, mode: str = "r", buffering: int = -1, **kwargs: Any
     ) -> Union[IO[str], IO[bytes]]:
@@ -299,7 +302,6 @@ class PathHandler:
             dst_path (str): A URI supported by this PathHandler to symlink to
         """
         raise NotImplementedError()
-
 
 class NativePathHandler(PathHandler):
     """
@@ -645,6 +647,24 @@ class PathManager:
         """
         return self.__get_path_handler(path)._open(  # type: ignore
             path, mode, buffering=buffering, **kwargs
+        )
+
+    def opent(
+        self, path: str, mode: str = "r", buffering: int = -1, **kwargs: Any
+        ) -> Iterable[Any]:
+        """
+        Open a tabular data source. Only reading is supported.
+
+        Args:
+            path (str): A URI supported by this PathHandler
+            mode (str): Specifies the mode in which the file is opened. It defaults
+                to 'r'.
+
+        Returns:
+            An iterable collection object.
+        """
+        return self.__get_path_handler(path)._opent(
+            path, mode, **kwargs
         )
 
     def copy(
