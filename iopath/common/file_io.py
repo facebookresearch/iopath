@@ -824,16 +824,19 @@ class PathManager:
 
             old_handler_type = type(self._path_handlers[prefix])
             if allow_override:
-                logger.warning(
-                    f"[PathManager] Attempting to register prefix '{prefix}' from "
-                    "the following call stack:\n" + "".join(traceback.format_stack())
-                )
-                logger.warning(
-                    f"[PathManager] Prefix '{prefix}' is already registered "
-                    f"by {old_handler_type}. We will override the old handler. "
-                    "To avoid such conflicts, create a project-specific PathManager "
-                    "instead."
-                )
+                # if using the global PathManager, show the warnings
+                global g_pathmgr
+                if self == g_pathmgr:
+                    logger.warning(
+                        f"[PathManager] Attempting to register prefix '{prefix}' from "
+                        "the following call stack:\n" + "".join(traceback.format_stack())
+                    )
+                    logger.warning(
+                        f"[PathManager] Prefix '{prefix}' is already registered "
+                        f"by {old_handler_type}. We will override the old handler. "
+                        "To avoid such conflicts, create a project-specific PathManager "
+                        "instead."
+                    )
                 self._path_handlers[prefix] = handler
             else:
                 raise KeyError(
@@ -908,7 +911,7 @@ class PathManagerFactory:
     pm_list = {}
 
     @staticmethod
-    def get(key = GLOBAL_PATH_MANAGER):
+    def get(key = GLOBAL_PATH_MANAGER) -> PathManager:
         """
         Get the path manager instance associated with a key.
         A new instance will be created if there is no existing
