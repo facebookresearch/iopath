@@ -185,7 +185,9 @@ class PathHandler:
         """
         raise NotImplementedError()
 
-    def _opent(self, path: str, mode: str = "r", **kwargs: Any) -> Iterable[Any]:
+    def _opent(
+        self, path: str, mode: str = "r", buffering: int = 32, **kwargs: Any
+        ) ->Iterable[Any]:
         raise NotImplementedError()
 
     def _open(
@@ -302,6 +304,7 @@ class PathHandler:
             dst_path (str): A URI supported by this PathHandler to symlink to
         """
         raise NotImplementedError()
+
 
 class NativePathHandler(PathHandler):
     """
@@ -626,6 +629,26 @@ class PathManager:
                 return self._path_handlers[p]
         return self._native_path_handler
 
+    def opent(
+        self, path: str, mode: str = "r", buffering: int = 32, **kwargs: Any
+        ) -> Iterable[Any]:
+        """
+        Open a tabular data source. Only reading is supported.
+        The opent() returns a Python iterable collection object, compared to bytes/text data with open()
+
+        Args:
+            path (str): A URI supported by this PathHandler
+            mode (str): Specifies the mode in which the file is opened. It defaults
+                to 'r'
+            buffering (int): number of rows fetched and cached
+
+        Returns:
+            An iterable collection object.
+        """
+        return self.__get_path_handler(path)._opent(
+            path, mode, buffering, **kwargs
+        )
+
     def open(
         self, path: str, mode: str = "r", buffering: int = -1, **kwargs: Any
     ) -> Union[IO[str], IO[bytes]]:
@@ -647,24 +670,6 @@ class PathManager:
         """
         return self.__get_path_handler(path)._open(  # type: ignore
             path, mode, buffering=buffering, **kwargs
-        )
-
-    def opent(
-        self, path: str, mode: str = "r", buffering: int = -1, **kwargs: Any
-        ) -> Iterable[Any]:
-        """
-        Open a tabular data source. Only reading is supported.
-
-        Args:
-            path (str): A URI supported by this PathHandler
-            mode (str): Specifies the mode in which the file is opened. It defaults
-                to 'r'.
-
-        Returns:
-            An iterable collection object.
-        """
-        return self.__get_path_handler(path)._opent(
-            path, mode, **kwargs
         )
 
     def copy(
