@@ -854,7 +854,9 @@ class PathManager:
                 if self == g_pathmgr:
                     logger.warning(
                         f"[PathManager] Attempting to register prefix '{prefix}' from "
-                        "the following call stack:\n" + "".join(traceback.format_stack())
+                        "the following call stack:\n"
+                        + "".join(traceback.format_stack(limit=5))
+                        # show the most recent callstack
                     )
                     logger.warning(
                         f"[PathManager] Prefix '{prefix}' is already registered "
