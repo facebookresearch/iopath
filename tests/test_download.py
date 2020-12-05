@@ -2,12 +2,13 @@
 
 import os
 import unittest
+import uuid
 
 from iopath.common.download import download
 
 
 class TestDownload(unittest.TestCase):
-    _filename = "facebook.html"
+    _filename = "facebook_" + uuid.uuid4().hex + ".html"
 
     def test_download(self) -> None:
         download(
