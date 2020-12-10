@@ -586,7 +586,8 @@ class OneDrivePathHandler(PathHandler):
         Returns:
             file: a file-like object.
         """
-        return PathManager.open(self._get_local_path(path), mode, **kwargs)
+        # NOTE: the strict_kwargs_check flag will not be in this temporary handler
+        return NativePathHandler()._open(self._get_local_path(path), mode, **kwargs)
 
     def _get_local_path(self, path: str, **kwargs: Any) -> str:
         """
@@ -598,7 +599,8 @@ class OneDrivePathHandler(PathHandler):
 
         logger.info(f"URL {path} mapped to direct download link {direct_url}")
 
-        return PathManager.get_local_path(os.fspath(direct_url), **kwargs)
+        # NOTE: the strict_kwargs_check flag will not be in this temporary handler
+        return HTTPURLHandler()._get_local_path(os.fspath(direct_url), **kwargs)
 
 
 class PathManager:
