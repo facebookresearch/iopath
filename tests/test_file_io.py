@@ -50,8 +50,6 @@ class TestNativeIO(unittest.TestCase):
 
         PathManagerFactory.remove("test_pm")
 
-
-
     def test_open_args(self) -> None:
         self._pathmgr.set_strict_kwargs_checking(True)
         f = self._pathmgr.open(
