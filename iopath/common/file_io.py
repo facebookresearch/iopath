@@ -541,7 +541,7 @@ class HTTPURLHandler(PathHandler):
         return open(local_path, mode)
 
 
-class OneDrivePathHandler(PathHandler):
+class OneDrivePathHandler(HTTPURLHandler):
     """
     Map OneDrive (short) URLs to direct download links
     """
@@ -570,25 +570,6 @@ class OneDrivePathHandler(PathHandler):
     def _get_supported_prefixes(self) -> List[str]:
         return [self.ONE_DRIVE_PREFIX]
 
-    def _open(
-        self, path: str, mode: str = "r", buffering: int = -1, **kwargs: Any
-    ) -> Union[IO[str], IO[bytes]]:
-        """
-        Open a remote OneDrive path. The resource is first downloaded and cached
-        locally.
-
-        Args:
-            path (str): A OneDrive URI supported by this PathHandler
-            mode (str): Specifies the mode in which the file is opened. It defaults
-                to 'r'.
-            buffering (int): Not used for this PathHandler.
-
-        Returns:
-            file: a file-like object.
-        """
-        # NOTE: the strict_kwargs_check flag will not be in this temporary handler
-        return NativePathHandler()._open(self._get_local_path(path), mode, **kwargs)
-
     def _get_local_path(self, path: str, **kwargs: Any) -> str:
         """
         This implementation downloads the remote resource and caches it locally.
@@ -599,8 +580,7 @@ class OneDrivePathHandler(PathHandler):
 
         logger.info(f"URL {path} mapped to direct download link {direct_url}")
 
-        # NOTE: the strict_kwargs_check flag will not be in this temporary handler
-        return HTTPURLHandler()._get_local_path(os.fspath(direct_url), **kwargs)
+        return super()._get_local_path(os.fspath(direct_url), **kwargs)
 
 
 class PathManager:
