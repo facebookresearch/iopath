@@ -50,8 +50,6 @@ class TestNativeIO(unittest.TestCase):
 
         PathManagerFactory.remove("test_pm")
 
-
-
     def test_open_args(self) -> None:
         self._pathmgr.set_strict_kwargs_checking(True)
         f = self._pathmgr.open(
@@ -214,11 +212,12 @@ class TestHTTPIO(unittest.TestCase):
         ), patch.object(file_io, "download", side_effect=fake_download):
             yield
 
-    def setUp(self) -> None:
-        self._pathmgr.register_handler(HTTPURLHandler())
-        if os.path.exists(self._cache_dir):
-            shutil.rmtree(self._cache_dir)
-        os.makedirs(self._cache_dir, exist_ok=True)
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls._pathmgr.register_handler(HTTPURLHandler())
+        if os.path.exists(cls._cache_dir):
+            shutil.rmtree(cls._cache_dir)
+        os.makedirs(cls._cache_dir, exist_ok=True)
 
     def test_get_local_path(self) -> None:
         with self._patch_download():
