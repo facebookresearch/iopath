@@ -196,7 +196,6 @@ class TestNativeIO(unittest.TestCase):
 class TestHTTPIO(unittest.TestCase):
     _remote_uri = "https://www.facebook.com"
     _filename = "facebook.html"
-    _cache_dir: str = os.path.join(get_cache_dir(), __name__)
     _pathmgr = PathManager()
 
     @contextmanager
@@ -214,6 +213,9 @@ class TestHTTPIO(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
+        # Use a unique pid based cache directory name.
+        pid = os.getpid()
+        cls._cache_dir: str = os.path.join(get_cache_dir(), f"{__name__}_{pid}")
         cls._pathmgr.register_handler(HTTPURLHandler())
         if os.path.exists(cls._cache_dir):
             shutil.rmtree(cls._cache_dir)
