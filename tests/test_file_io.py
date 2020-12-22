@@ -129,6 +129,20 @@ class TestNativeIO(unittest.TestCase):
         with self._pathmgr.open(_tmpfile_2, "r") as f:
             self.assertEqual(f.read(), self._tmpfile_contents)
 
+    def test_move(self) -> None:
+        _tmpfile_2 = self._tmpfile + "2" + uuid.uuid4().hex # pyre-ignore
+        _tmpfile_3 = self._tmpfile + "3_" + uuid.uuid4().hex # pyre-ignore
+        _tmpfile_2_contents = "Hello Move"
+        with open(_tmpfile_2, "w") as f:
+            f.write(_tmpfile_2_contents)
+            f.flush()
+        # pyre-ignore
+        assert self._pathmgr.mv(_tmpfile_2, _tmpfile_3)
+        with self._pathmgr.open(_tmpfile_3, "r") as f:
+            self.assertEqual(f.read(), _tmpfile_2_contents)
+        self.assertFalse(self._pathmgr.exists(_tmpfile_2))
+        self._pathmgr.rm(_tmpfile_3)
+
     def test_symlink(self) -> None:
         _symlink = self._tmpfile + "_symlink"  # pyre-ignore
         assert self._pathmgr.symlink(self._tmpfile, _symlink)  # pyre-ignore

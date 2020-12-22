@@ -236,6 +236,21 @@ class PathHandler:
         """
         raise NotImplementedError()
 
+    def _mv(
+        self, src_path: str, dst_path: str, **kwargs: Any
+    ) -> bool:
+        """
+        Moves (renames) a source path to a destination path.
+
+        Args:
+            src_path (str): A URI supported by this PathHandler
+            dst_path (str): A URI supported by this PathHandler
+
+        Returns:
+            status (bool): True on success
+        """
+        raise NotImplementedError()
+
     def _exists(self, path: str, **kwargs: Any) -> bool:
         """
         Checks if there is a resource at the given URI.
@@ -423,6 +438,34 @@ class NativePathHandler(PathHandler):
         except Exception as e:
             logger = logging.getLogger(__name__)
             logger.error("Error in file copy - {}".format(str(e)))
+            return False
+
+    def _mv(
+        self, src_path: str, dst_path: str, **kwargs: Any
+    ) -> bool:
+        """
+        Moves (renames) a source path to a destination path.
+
+        Args:
+            src_path (str): A URI supported by this PathHandler
+            dst_path (str): A URI supported by this PathHandler
+
+        Returns:
+            status (bool): True on success
+        """
+        self._check_kwargs(kwargs)
+
+        if os.path.exists(dst_path):
+            logger = logging.getLogger(__name__)
+            logger.error("Destination file {} already exists.".format(dst_path))
+            return False
+
+        try:
+            shutil.move(src_path, dst_path)
+            return True
+        except Exception as e:
+            logger = logging.getLogger(__name__)
+            logger.error("Error in move operation - {}".format(str(e)))
             return False
 
     def _symlink(self, src_path: str, dst_path: str, **kwargs: Any) -> bool:
@@ -684,6 +727,34 @@ class PathManager:
         ) == self.__get_path_handler(dst_path)
         return self.__get_path_handler(src_path)._copy(
             src_path, dst_path, overwrite, **kwargs
+        )
+
+    def mv(
+        self, src_path: str, dst_path: str, **kwargs: Any
+    ) -> bool:
+        """
+        Moves (renames) a source path supported by NativePathHandler to
+        a destination path.
+
+        Args:
+            src_path (str): A URI supported by NativePathHandler
+            dst_path (str): A URI supported by NativePathHandler
+
+        Returns:
+            status (bool): True on success
+        Exception:
+            Asserts if both the src and dest paths are not supported by
+            NativePathHandler.
+        """
+
+        # Moving across handlers is not supported.
+        assert self.__get_path_handler(  # type: ignore
+            src_path
+        ) == self.__get_path_handler(
+            dst_path
+        ), "Src and dest paths must be supported by the same path handler."
+        return self.__get_path_handler(src_path)._mv(
+            src_path, dst_path, **kwargs
         )
 
     def get_local_path(self, path: str, **kwargs: Any) -> str:
