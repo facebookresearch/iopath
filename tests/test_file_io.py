@@ -16,6 +16,7 @@ from iopath.common.file_io import PathManagerFactory, g_pathmgr
 
 class TestNativeIO(unittest.TestCase):
     _tmpdir: Optional[str] = None
+    _filename: Optional[str] = None
     _tmpfile: Optional[str] = None
     _tmpfile_contents = "Hello, World"
     _pathmgr = PathManager()
@@ -23,8 +24,9 @@ class TestNativeIO(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls._tmpdir = tempfile.mkdtemp()
+        cls._filename = "test.txt"
         # pyre-ignore
-        with open(os.path.join(cls._tmpdir, "test.txt"), "w") as f:
+        with open(os.path.join(cls._tmpdir, cls._filename), "w") as f:
             cls._tmpfile = f.name
             f.write(cls._tmpfile_contents)
             f.flush()
@@ -163,6 +165,35 @@ class TestNativeIO(unittest.TestCase):
         self.assertFalse(self._pathmgr.exists(rm_file))
         self.assertFalse(self._pathmgr.isfile(rm_file))
 
+    def test_set_cwd(self) -> None:
+        # File not found since cwd not set yet.
+        self.assertFalse(self._pathmgr.isfile(self._filename))
+        self.assertTrue(self._pathmgr.isfile(self._tmpfile))
+        # Once cwd is set, relative file path works.
+        self._pathmgr.set_cwd(self._tmpdir)
+        self.assertTrue(self._pathmgr.isfile(self._filename))
+
+        # Set cwd to None
+        self._pathmgr.set_cwd(None)
+        self.assertFalse(self._pathmgr.isfile(self._filename))
+        self.assertTrue(self._pathmgr.isfile(self._tmpfile))
+
+        # Set cwd to invalid path
+        with self.assertRaises(ValueError):
+            self._pathmgr.set_cwd("/nonexistent/path")
+
+    def test_get_path_with_cwd(self) -> None:
+        self._pathmgr.set_cwd(self._tmpdir)
+        # Make sure _get_path_with_cwd() returns correctly.
+        self.assertEqual(
+            self._pathmgr._native_path_handler._get_path_with_cwd(self._filename),
+            self._tmpfile
+        )
+        self.assertEqual(
+            self._pathmgr._native_path_handler._get_path_with_cwd("/abs.txt"),
+            "/abs.txt"
+        )
+
     def test_bad_args(self) -> None:
         # TODO (T58240718): Replace with dynamic checks
         with self.assertRaises(ValueError):
@@ -185,6 +216,8 @@ class TestNativeIO(unittest.TestCase):
             self._pathmgr.open(self._tmpfile, foo="foo")  # type: ignore
         with self.assertRaises(ValueError):
             self._pathmgr.rm(self._tmpfile, foo="foo")  # type: ignore
+        with self.assertRaises(ValueError):
+            self._pathmgr.set_cwd(self._tmpdir, foo="foo")  # type: ignore
 
         self._pathmgr.set_strict_kwargs_checking(False)
 
@@ -288,6 +321,8 @@ class TestHTTPIO(unittest.TestCase):
             self._pathmgr.open(self._remote_uri, foo="foo")  # type: ignore
         with self.assertRaises(NotImplementedError):
             self._pathmgr.rm(self._remote_uri, foo="foo")  # type: ignore
+        with self.assertRaises(NotImplementedError):
+            self._pathmgr.set_cwd(self._remote_uri, foo="foo")  # type: ignore
 
         self._pathmgr.set_strict_kwargs_checking(False)
 

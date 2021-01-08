@@ -329,12 +329,28 @@ class PathHandler:
         """
         raise NotImplementedError()
 
+    def _set_cwd(self, path: Union[str, None], **kwargs: Any) -> bool:
+        """
+        Set the current working directory. PathHandler classes prepend the cwd
+        to all URI paths that are handled.
+
+        Args:
+            path (str) or None: A URI supported by this PathHandler. Must be a valid
+                absolute Unix path or None to set the cwd to None.
+
+        Returns:
+            bool: true if cwd was set without errors
+        """
+        raise NotImplementedError()
+
 
 class NativePathHandler(PathHandler):
     """
     Handles paths that can be accessed using Python native system calls. This
     handler uses `open()` and `os.*` calls on the given path.
     """
+
+    _cwd = None
 
     def _get_local_path(self, path: str, **kwargs: Any) -> str:
         self._check_kwargs(kwargs)
@@ -344,6 +360,8 @@ class NativePathHandler(PathHandler):
         self, local_path: str, dst_path: str, overwrite: bool = False, **kwargs: Any
     ) -> None:
         self._check_kwargs(kwargs)
+        local_path = self._get_path_with_cwd(local_path)
+        dst_path = self._get_path_with_cwd(dst_path)
         assert self._copy(
             src_path=local_path, dst_path=dst_path, overwrite=overwrite, **kwargs
         )
@@ -401,7 +419,7 @@ class NativePathHandler(PathHandler):
         """
         self._check_kwargs(kwargs)
         return open(  # type: ignore
-            path,
+            self._get_path_with_cwd(path),
             mode,
             buffering=buffering,
             encoding=encoding,
@@ -426,7 +444,8 @@ class NativePathHandler(PathHandler):
             status (bool): True on success
         """
         self._check_kwargs(kwargs)
-
+        src_path = self._get_path_with_cwd(src_path)
+        dst_path = self._get_path_with_cwd(dst_path)
         if os.path.exists(dst_path) and not overwrite:
             logger = logging.getLogger(__name__)
             logger.error("Destination file {} already exists.".format(dst_path))
@@ -454,7 +473,8 @@ class NativePathHandler(PathHandler):
             status (bool): True on success
         """
         self._check_kwargs(kwargs)
-
+        src_path = self._get_path_with_cwd(src_path)
+        dst_path = self._get_path_with_cwd(dst_path)
         if os.path.exists(dst_path):
             logger = logging.getLogger(__name__)
             logger.error("Destination file {} already exists.".format(dst_path))
@@ -480,6 +500,8 @@ class NativePathHandler(PathHandler):
             status (bool): True on success
         """
         self._check_kwargs(kwargs)
+        src_path = self._get_path_with_cwd(src_path)
+        dst_path = self._get_path_with_cwd(dst_path)
         logger = logging.getLogger(__name__)
         if not os.path.exists(src_path):
             logger.error("Source path {} does not exist".format(src_path))
@@ -496,19 +518,19 @@ class NativePathHandler(PathHandler):
 
     def _exists(self, path: str, **kwargs: Any) -> bool:
         self._check_kwargs(kwargs)
-        return os.path.exists(path)
+        return os.path.exists(self._get_path_with_cwd(path))
 
     def _isfile(self, path: str, **kwargs: Any) -> bool:
         self._check_kwargs(kwargs)
-        return os.path.isfile(path)
+        return os.path.isfile(self._get_path_with_cwd(path))
 
     def _isdir(self, path: str, **kwargs: Any) -> bool:
         self._check_kwargs(kwargs)
-        return os.path.isdir(path)
+        return os.path.isdir(self._get_path_with_cwd(path))
 
     def _ls(self, path: str, **kwargs: Any) -> List[str]:
         self._check_kwargs(kwargs)
-        return os.listdir(path)
+        return os.listdir(self._get_path_with_cwd(path))
 
     def _mkdirs(self, path: str, **kwargs: Any) -> None:
         self._check_kwargs(kwargs)
@@ -522,6 +544,25 @@ class NativePathHandler(PathHandler):
     def _rm(self, path: str, **kwargs: Any) -> None:
         self._check_kwargs(kwargs)
         os.remove(path)
+
+    def _set_cwd(self, path: Union[str, None], **kwargs: Any) -> bool:
+        self._check_kwargs(kwargs)
+        # Remove cwd path if None
+        if path is None:
+            self._cwd = None
+            return True
+
+        # Make sure path is a valid Unix path
+        if not os.path.exists(path):
+            raise ValueError(f"{path} is not a valid Unix path")
+        # Make sure path is an absolute path
+        if not os.path.isabs(path):
+            raise ValueError(f"{path} is not an absolute path")
+        self._cwd = path
+        return True
+
+    def _get_path_with_cwd(self, path: str) -> str:
+        return path if not self._cwd else os.path.join(self._cwd, path)
 
 
 class HTTPURLHandler(PathHandler):
@@ -644,6 +685,12 @@ class PathManager:
         self._native_path_handler: PathHandler = NativePathHandler()
         """
         A NativePathHandler that works on posix paths. This is used as the fallback.
+        """
+
+        self._cwd: Optional[str] = None
+        """
+        Keeps track of the single cwd (if set).
+        NOTE: Only one PathHandler can have a cwd set at a time.
         """
 
     def __get_path_handler(self, path: Union[str, os.PathLike]) -> PathHandler:
@@ -890,6 +937,25 @@ class PathManager:
             src_path
         ) == self.__get_path_handler(dst_path)
         return self.__get_path_handler(src_path)._symlink(src_path, dst_path, **kwargs)
+
+    def set_cwd(self, path: Union[str, None], **kwargs: Any) -> bool:
+        """
+        Set the current working directory. PathHandler classes prepend the cwd
+        to all URI paths that are handled.
+
+        Args:
+            path (str) or None: A URI supported by this PathHandler. Must be a valid
+                absolute Unix path or None to set the cwd to None.
+
+        Returns:
+            bool: true if cwd was set without errors
+        """
+        if path is None and self._cwd is None:
+            return True
+        if self.__get_path_handler(path or self._cwd)._set_cwd(path, **kwargs):  # type: ignore
+            self._cwd = path
+            return True
+        return False
 
     def register_handler(
         self, handler: PathHandler, allow_override: bool = False
