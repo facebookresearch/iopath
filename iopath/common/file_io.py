@@ -220,6 +220,11 @@ class PathHandler:
         """
         raise NotImplementedError()
 
+    def _opena(
+        self, path: str, mode: str = "r", buffering: int = -1, **kwargs: Any
+    ) -> Union[IO[str], IO[bytes]]:
+        raise NotImplementedError()
+
     def _copy(
         self, src_path: str, dst_path: str, overwrite: bool = False, **kwargs: Any
     ) -> bool:
@@ -750,6 +755,38 @@ class PathManager:
             file: a file-like object.
         """
         return self.__get_path_handler(path)._open(  # type: ignore
+            path, mode, buffering=buffering, **kwargs
+        )
+
+    # NOTE: This feature is not yet implemented. Currently a placeholder.
+    def opena(
+        self, path: str, mode: str = "r", buffering: int = -1, **kwargs: Any
+    ) -> Union[IO[str], IO[bytes]]:
+        # NOTE: Change the typing from `IO` to `AsyncIO` or `NonBlockingIO`
+        # for clarity.
+        """
+        Open a stream to a URI with asynchronous permissions. Once implemented,
+        `f.write()` calls (and potentially `f.read()` calls) will be dispatched
+        asynchronously in a separate thread/process such that the main program
+        can continue running. This raises a warning if the path handler's
+        `opena` method is not implemented and then falls back on the `open`
+        method for synchronous actions.
+
+        Usage:
+            for n in range(50):
+                results = run_a_large_task(n)
+                # `f` is a file-like object with asynchronous methods
+                with path_manager.opena(uri, "w") as f:
+                    f.write(results)            # Runs in separate thread/process
+                # Main process returns immediately and continues to next iteration
+
+        Args:
+            Same args as open()
+
+        Returns:
+            file: a file-like object with asynchronous methods.
+        """
+        return self.__get_path_handler(path)._opena(
             path, mode, buffering=buffering, **kwargs
         )
 
