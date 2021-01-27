@@ -166,6 +166,7 @@ class TestNativeIO(unittest.TestCase):
         self.assertFalse(self._pathmgr.isfile(rm_file))
 
     def test_set_cwd(self) -> None:
+        self._pathmgr.set_cwd(None)
         # File not found since cwd not set yet.
         self.assertFalse(self._pathmgr.isfile(self._filename))
         self.assertTrue(self._pathmgr.isfile(self._tmpfile))
