@@ -48,20 +48,30 @@ class NonBlockingIOManager:
         )
         return self._path_to_io[path]
 
-    # TODO: Allow user to call `_join` on a specific file.
-    def _join(self):
+    # TODO: Allow any number of path args to be passed in.
+    def _join(self, path: Optional[str] = None):
         """
         Cleans up the ThreadPool for each of the `NonBlockingIO`
         objects and ensures all files are closed.
+
+        Args:
+            path (str): Pass in a file path and all of the threads that are operating
+                on that file path will be joined. If no path is passed in, then all
+                threads operating on all file paths will be joined.
         """
-        for _io in self._path_to_io.values():
-            # If a `_close` call fails, we print the error and continue
-            # closing the rest of the IO objects.
+        if path and path not in self._path_to_io:
+            raise ValueError(
+                f"{path} has no async IO associated with it. "
+                f"Make sure `opena({path})` is called first."
+            )
+        # If a `_close` call fails, we print the error and continue
+        # closing the rest of the IO objects.
+        paths_to_close = [path] if path else list(self._path_to_io.keys())
+        for _path in paths_to_close:
             try:
-                _io._close()
+                self._path_to_io.pop(_path)._close()
             except Exception:
                 traceback.print_exc()
-        self._path_to_io.clear()
 
 
 # NOTE: We currently only support asynchronous writes (not reads).

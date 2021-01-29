@@ -110,6 +110,38 @@ class TestNativeIO(unittest.TestCase):
         self.assertTrue(f.closed)
         self.assertTrue(g.closed)
 
+    def test_opena_join_behavior(self) -> None:
+        _filename = "async.txt"
+        _tmpfile = os.path.join(self._tmpdir, _filename)
+        _tmpfile_contents = "Async Text"
+        _path_to_io = (
+            self._pathmgr._native_path_handler._non_blocking_io_manager._path_to_io
+        )
+        try:
+            for _ in range(1):          # Opens 1 thread
+                with self._pathmgr.opena(_tmpfile+"1", "w") as f:
+                    f.write(_tmpfile_contents)
+            for _ in range(2):          # Opens 2 threads
+                with self._pathmgr.opena(_tmpfile+"2", "w") as f:
+                    f.write(_tmpfile_contents+"2")
+            for _ in range(3):          # Opens 3 threads
+                with self._pathmgr.opena(_tmpfile+"3", "w") as f:
+                    f.write(_tmpfile_contents+"3")
+            # Join the threads for the 2nd file and ensure threadpool completed.
+            _path_to_io_copy = dict(_path_to_io)
+            self._pathmgr.join(_tmpfile+"2")    # Removes `_tmpfile+"2"` from `_path_to_io`
+            self.assertTrue(_path_to_io_copy[_tmpfile+"2"]._consumer.done())
+            self.assertEqual(len(_path_to_io), 2)                  # 2 files remaining
+        finally:
+            # Join all the remaining threads
+            _path_to_io_copy = dict(_path_to_io)
+            self._pathmgr.join()
+
+        # Ensure threadpools completed.
+        self.assertTrue(_path_to_io_copy[_tmpfile+"1"]._consumer.done())
+        self.assertTrue(_path_to_io_copy[_tmpfile+"3"]._consumer.done())
+        self.assertEqual(len(_path_to_io), 0)                  # 0 files remaining
+
     def test_get_local_path(self) -> None:
         self.assertEqual(
             # pyre-ignore

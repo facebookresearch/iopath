@@ -229,6 +229,11 @@ class PathHandler:
     ) -> Union[IO[str], IO[bytes]]:
         raise NotImplementedError()
 
+    def _join(
+        self, path: Optional[str] = None, **kwargs: Any
+    ) -> None:
+        raise NotImplementedError()
+
     def _copy(
         self, src_path: str, dst_path: str, overwrite: bool = False, **kwargs: Any
     ) -> bool:
@@ -488,9 +493,11 @@ class NativePathHandler(PathHandler):
             opener=opener,
         )
 
-    def _join(self, **kwargs: Any) -> None:
+    def _join(
+        self, path: Optional[str] = None, **kwargs: Any
+    ) -> None:
         self._check_kwargs(kwargs)
-        self._non_blocking_io_manager._join()
+        self._non_blocking_io_manager._join(self._get_path_with_cwd(path))
 
     def _copy(
         self, src_path: str, dst_path: str, overwrite: bool = False, **kwargs: Any
@@ -861,14 +868,21 @@ class PathManager:
         self._async_handlers_used.add(self.__get_path_handler(path))
         return non_blocking_io
 
-    def join(self, **kwargs: Any) -> None:
+    def join(
+        self, path: Optional[str] = None, **kwargs: Any
+    ) -> None:
         """
-        Ensures that all async write threads are properly joined. This function
+        Ensures that desired async write threads are properly joined. `join()`
         should be called at the very end of any script that uses the asynchronous
         `opena` feature.
+
+        Args:
+            path (str): Pass in a file path and all of the threads that are operating
+                on that file path will be joined. If no path is passed in, then all
+                threads operating on all file paths will be joined.
         """
         for path_handler in self._async_handlers_used:
-            path_handler._join(**kwargs)
+            path_handler._join(path, **kwargs)
 
     def copy(
         self, src_path: str, dst_path: str, overwrite: bool = False, **kwargs: Any
