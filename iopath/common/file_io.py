@@ -4,15 +4,19 @@ import base64
 import errno
 import logging
 import os
+import portalocker  # type: ignore
 import shutil
 import tempfile
 import traceback
 from collections import OrderedDict
-from typing import IO, Any, Callable, Dict, List, MutableMapping, Optional, Union, Iterable
+from typing import (
+    Any, Callable, Dict, Iterable, IO, List, MutableMapping, Optional,
+    Set, Union,
+)
 from urllib.parse import urlparse
 
-import portalocker  # type: ignore
 from iopath.common.download import download
+from iopath.common.non_blocking_io import NonBlockingIOManager
 
 
 __all__ = ["LazyPath", "PathManager", "get_cache_dir", "file_lock"]
@@ -356,6 +360,7 @@ class NativePathHandler(PathHandler):
     """
 
     _cwd = None
+    _non_blocking_io_manager = NonBlockingIOManager()
 
     def _get_local_path(self, path: str, **kwargs: Any) -> str:
         self._check_kwargs(kwargs)
@@ -433,6 +438,59 @@ class NativePathHandler(PathHandler):
             closefd=closefd,
             opener=opener,
         )
+
+    def _opena(
+        self,
+        path: str,
+        mode: str = "r",
+        buffering: int = -1,
+        encoding: Optional[str] = None,
+        errors: Optional[str] = None,
+        newline: Optional[str] = None,
+        closefd: bool = True,
+        opener: Optional[Callable] = None,
+        **kwargs: Any,
+    ) -> Union[IO[str], IO[bytes]]:
+        """
+        Open a file with asynchronous permissions. Once implemented,
+        `f.write()` calls (and potentially `f.read()` calls) will be dispatched
+        asynchronously in a separate thread such that the main program can
+        continue running.
+
+        NOTE: Writes to the same path are serialized so they are written in
+        the same order as they were called but writes to distinct paths can
+        happen concurrently.
+
+        Usage:
+            for n in range(50):
+                results = run_a_large_task(n)
+                # `f` is a file-like object with asynchronous methods
+                with path_manager.opena(uri, "w") as f:
+                    f.write(results)            # Runs in separate thread
+                # Main process returns immediately and continues to next iteration
+
+        Args:
+            Same args as `_open()`
+            NOTE: For now, `mode` must be "w".
+
+        Returns:
+            file: a file-like object with asynchronous methods.
+        """
+        self._check_kwargs(kwargs)
+        return self._non_blocking_io_manager._get_io_for_path(
+            self._get_path_with_cwd(path),
+            mode,
+            buffering=buffering,
+            encoding=encoding,
+            errors=errors,
+            newline=newline,
+            closefd=closefd,
+            opener=opener,
+        )
+
+    def _join(self, **kwargs: Any) -> None:
+        self._check_kwargs(kwargs)
+        self._non_blocking_io_manager._join()
 
     def _copy(
         self, src_path: str, dst_path: str, overwrite: bool = False, **kwargs: Any
@@ -698,6 +756,13 @@ class PathManager:
         NOTE: Only one PathHandler can have a cwd set at a time.
         """
 
+        self._async_handlers_used: Set[PathHandler] = set()
+        """
+        Keeps track of the PathHandler subclasses where `opena` was used so
+        all of the threads can be properly joined when calling
+        `PathManager.join`.
+        """
+
     def __get_path_handler(self, path: Union[str, os.PathLike]) -> PathHandler:
         """
         Finds a PathHandler that supports the given path. Falls back to the native
@@ -758,37 +823,52 @@ class PathManager:
             path, mode, buffering=buffering, **kwargs
         )
 
-    # NOTE: This feature is not yet implemented. Currently a placeholder.
+    # NOTE: This feature is only implemented for `NativePathHandler` and can
+    # currently only be used in write mode.
     def opena(
         self, path: str, mode: str = "r", buffering: int = -1, **kwargs: Any
     ) -> Union[IO[str], IO[bytes]]:
-        # NOTE: Change the typing from `IO` to `AsyncIO` or `NonBlockingIO`
-        # for clarity.
         """
         Open a stream to a URI with asynchronous permissions. Once implemented,
         `f.write()` calls (and potentially `f.read()` calls) will be dispatched
-        asynchronously in a separate thread/process such that the main program
-        can continue running. This raises a warning if the path handler's
-        `opena` method is not implemented and then falls back on the `open`
-        method for synchronous actions.
+        asynchronously in a separate thread such that the main program can
+        continue running.
+
+        NOTE: Writes to the same path are serialized so they are written in
+        the same order as they were called but writes to distinct paths can
+        happen concurrently.
 
         Usage:
             for n in range(50):
                 results = run_a_large_task(n)
                 # `f` is a file-like object with asynchronous methods
                 with path_manager.opena(uri, "w") as f:
-                    f.write(results)            # Runs in separate thread/process
+                    f.write(results)            # Runs in separate thread
                 # Main process returns immediately and continues to next iteration
 
         Args:
             Same args as open()
+            NOTE: For now, `mode` must be "w".
 
         Returns:
             file: a file-like object with asynchronous methods.
         """
-        return self.__get_path_handler(path)._opena(
+        non_blocking_io = self.__get_path_handler(path)._opena(
             path, mode, buffering=buffering, **kwargs
         )
+        # Keep track of the path handlers where `opena` is used so that all of the
+        # threads can be properly joined on `PathManager.join`.
+        self._async_handlers_used.add(self.__get_path_handler(path))
+        return non_blocking_io
+
+    def join(self, **kwargs: Any) -> None:
+        """
+        Ensures that all async write threads are properly joined. This function
+        should be called at the very end of any script that uses the asynchronous
+        `opena` feature.
+        """
+        for path_handler in self._async_handlers_used:
+            path_handler._join(**kwargs)
 
     def copy(
         self, src_path: str, dst_path: str, overwrite: bool = False, **kwargs: Any

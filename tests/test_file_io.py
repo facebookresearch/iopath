@@ -66,6 +66,50 @@ class TestNativeIO(unittest.TestCase):
         )
         f.close()
 
+    def test_opena(self) -> None:
+        _tmpfile = os.path.join(self._tmpdir, "async.txt")
+        try:
+            # Write the files.
+            with self._pathmgr.opena(_tmpfile+"f", "a") as f:
+                f.write("f1 ")
+                with self._pathmgr.opena(_tmpfile+"g", "a") as g:
+                    f.write("f2 ")
+                    g.write("g1 ")
+                    f.write("f3 ")
+                f.write("f4 ")
+            with self._pathmgr.opena(_tmpfile+"f", "a") as f:
+                f.write("f5 ")
+            F_STR = "f1 f2 f3 f4 f5 "
+            G_STR = "g1 "
+            # Test that neither `NonBlockingIO` objects `f` and `g` are closed.
+            self.assertFalse(f.closed)
+            self.assertFalse(g.closed)
+
+            # Test that `PathManager._async_handlers_used` keeps track of all
+            # `PathHandler`-s where `opena` is used.
+            self.assertCountEqual(
+                [type(handler) for handler in self._pathmgr._async_handlers_used],
+                [type(self._pathmgr._native_path_handler)],
+            )
+            # Test that 2 paths were properly logged in `NonBlockingIOManager`.
+            manager = (
+                self._pathmgr._native_path_handler._non_blocking_io_manager
+            )
+            self.assertEqual(len(manager._path_to_io), 2)
+        finally:
+            # Join the threads to wait for files to be written.
+            self._pathmgr.join()
+
+        # Check that both files were asynchronously written and written in order.
+        with self._pathmgr.open(_tmpfile+"f", "r") as f:
+            self.assertEqual(f.read(), F_STR)
+        with self._pathmgr.open(_tmpfile+"g", "r") as g:
+            self.assertEqual(g.read(), G_STR)
+        # Test that both `NonBlockingIO` objects `f` and `g` are finally closed.
+        self.assertEqual(len(manager._path_to_io), 0)
+        self.assertTrue(f.closed)
+        self.assertTrue(g.closed)
+
     def test_get_local_path(self) -> None:
         self.assertEqual(
             # pyre-ignore
@@ -215,7 +259,7 @@ class TestNativeIO(unittest.TestCase):
             self._pathmgr.mkdirs(self._tmpfile, foo="foo")  # type: ignore
         with self.assertRaises(ValueError):
             self._pathmgr.open(self._tmpfile, foo="foo")  # type: ignore
-        with self.assertRaises(NotImplementedError):
+        with self.assertRaises(ValueError):
             self._pathmgr.opena(self._tmpfile, foo="foo")  # type: ignore
         with self.assertRaises(ValueError):
             self._pathmgr.rm(self._tmpfile, foo="foo")  # type: ignore
