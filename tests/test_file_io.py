@@ -37,6 +37,11 @@ class TestNativeIO(unittest.TestCase):
         if cls._tmpdir is not None:
             shutil.rmtree(cls._tmpdir)  # type: ignore
 
+    def setUp(self) -> None:
+        # Reset class variables set by methods before each test.
+        self._pathmgr.set_cwd(None)
+        self._pathmgr._async_handlers_used.clear()
+
     def test_open(self) -> None:
         # pyre-ignore
         with self._pathmgr.open(self._tmpfile, "r") as f:
@@ -202,8 +207,9 @@ class TestNativeIO(unittest.TestCase):
         with open(_tmpfile_2, "w") as f:
             f.write(_tmpfile_2_contents)
             f.flush()
-        # pyre-ignore
-        assert self._pathmgr.copy(self._tmpfile, _tmpfile_2, True)
+        self.assertTrue(
+            self._pathmgr.copy(self._tmpfile, _tmpfile_2, overwrite=True)
+        )
         with self._pathmgr.open(_tmpfile_2, "r") as f:
             self.assertEqual(f.read(), self._tmpfile_contents)
 
@@ -215,7 +221,7 @@ class TestNativeIO(unittest.TestCase):
             f.write(_tmpfile_2_contents)
             f.flush()
         # pyre-ignore
-        assert self._pathmgr.mv(_tmpfile_2, _tmpfile_3)
+        self.assertTrue(self._pathmgr.mv(_tmpfile_2, _tmpfile_3))
         with self._pathmgr.open(_tmpfile_3, "r") as f:
             self.assertEqual(f.read(), _tmpfile_2_contents)
         self.assertFalse(self._pathmgr.exists(_tmpfile_2))
@@ -223,10 +229,10 @@ class TestNativeIO(unittest.TestCase):
 
     def test_symlink(self) -> None:
         _symlink = self._tmpfile + "_symlink"  # pyre-ignore
-        assert self._pathmgr.symlink(self._tmpfile, _symlink)  # pyre-ignore
+        self.assertTrue(self._pathmgr.symlink(self._tmpfile, _symlink))  # pyre-ignore
         with self._pathmgr.open(_symlink) as f:
             self.assertEqual(f.read(), self._tmpfile_contents)
-        assert os.readlink(_symlink) == self._tmpfile
+        self.assertEqual(os.readlink(_symlink), self._tmpfile)
         os.remove(_symlink)
 
     def test_rm(self) -> None:
@@ -242,7 +248,6 @@ class TestNativeIO(unittest.TestCase):
         self.assertFalse(self._pathmgr.isfile(rm_file))
 
     def test_set_cwd(self) -> None:
-        self._pathmgr.set_cwd(None)
         # File not found since cwd not set yet.
         self.assertFalse(self._pathmgr.isfile(self._filename))
         self.assertTrue(self._pathmgr.isfile(self._tmpfile))
@@ -469,4 +474,4 @@ class TestOneDrive(unittest.TestCase):
             "https://api.onedrive.com/v1.0/shares/u!aHR0cHM6Ly8xZHJ2Lm1zL3UvcyFBd"
             + "XM4VkNaX0NfMzNnUWJKc1VQVElqM3JRdTk5/root/content"
         )
-        self.assertEquals(_direct_url, _gt_url)
+        self.assertEqual(_direct_url, _gt_url)
