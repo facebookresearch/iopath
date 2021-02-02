@@ -16,10 +16,15 @@ class NonBlockingIOManager:
     until it is cleaned up by `PathManager.join()` or
     automatically when an error is thrown.
     """
-    def __init__(self):
-        self._path_to_io = {}
+    # Ensure `NonBlockingIOManager` is a singleton.
+    __instance = None
+    def __new__(cls):
+        if cls.__instance is None:
+            cls.__instance = object.__new__(cls)
+            cls.__instance._path_to_io = {}
+        return cls.__instance
 
-    def _get_io_for_path(
+    def get_io_for_path(
         self,
         path: str,
         mode: str = "r",
