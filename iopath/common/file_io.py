@@ -482,8 +482,9 @@ class NativePathHandler(PathHandler):
             file: a file-like object with asynchronous methods.
         """
         self._check_kwargs(kwargs)
+        path = os.path.normpath(self._get_path_with_cwd(path))
         return self._non_blocking_io_manager.get_io_for_path(
-            self._get_path_with_cwd(path),
+            path,
             mode,
             buffering=buffering,
             encoding=encoding,

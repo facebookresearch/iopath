@@ -150,6 +150,34 @@ class TestNativeIO(unittest.TestCase):
         self.assertEqual(len(self._pathmgr._async_handlers), 0)
         self.assertEqual(len(_path_to_io), 0)                   # 0 files remaining
 
+    def test_opena_normpath(self) -> None:
+        _filename = "async.txt"
+        # `_file1` and `_file2` should represent the same path but have different
+        # string representations.
+        _file1 = os.path.join(self._tmpdir, _filename)
+        _file2 = os.path.join(self._tmpdir, ".", _filename)
+        self.assertNotEqual(_file1, _file2)
+        _path_to_io = (
+            self._pathmgr._native_path_handler._non_blocking_io_manager._path_to_io
+        )
+        try:
+            _file1_text = "File1 text"
+            _file2_text = "File2 text"
+            with self._pathmgr.opena(_file1, "a") as f:
+                f.write(_file1_text)
+            with self._pathmgr.opena(_file2, "a") as f:
+                f.write(_file2_text)
+            # Check that `file2` is marked as the same file as `file1`.
+            self.assertEqual(len(_path_to_io), 1)
+            self._pathmgr.join()
+            # Check that both file paths give the same file contents.
+            with self._pathmgr.open(_file1, "r") as f:
+                self.assertEqual(f.read(), _file1_text + _file2_text)
+            with self._pathmgr.open(_file2, "r") as f:
+                self.assertEqual(f.read(), _file1_text + _file2_text)
+        finally:
+            self._pathmgr.join()
+
     def test_get_local_path(self) -> None:
         self.assertEqual(
             # pyre-ignore
