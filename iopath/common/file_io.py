@@ -231,7 +231,7 @@ class PathHandler:
 
     def _join(
         self, path: Optional[str] = None, **kwargs: Any
-    ) -> None:
+    ) -> bool:
         raise NotImplementedError()
 
     def _copy(
@@ -495,9 +495,10 @@ class NativePathHandler(PathHandler):
 
     def _join(
         self, path: Optional[str] = None, **kwargs: Any
-    ) -> None:
+    ) -> bool:
         self._check_kwargs(kwargs)
-        self._non_blocking_io_manager._join(self._get_path_with_cwd(path))
+        _path = self._get_path_with_cwd(path) if path else None
+        return self._non_blocking_io_manager._join(_path)
 
     def _copy(
         self, src_path: str, dst_path: str, overwrite: bool = False, **kwargs: Any
@@ -763,7 +764,7 @@ class PathManager:
         NOTE: Only one PathHandler can have a cwd set at a time.
         """
 
-        self._async_handlers_used: Set[PathHandler] = set()
+        self._async_handlers: Set[PathHandler] = set()
         """
         Keeps track of the PathHandler subclasses where `opena` was used so
         all of the threads can be properly joined when calling
@@ -865,24 +866,38 @@ class PathManager:
         )
         # Keep track of the path handlers where `opena` is used so that all of the
         # threads can be properly joined on `PathManager.join`.
-        self._async_handlers_used.add(self.__get_path_handler(path))
+        self._async_handlers.add(self.__get_path_handler(path))
         return non_blocking_io
 
-    def join(
-        self, path: Optional[str] = None, **kwargs: Any
-    ) -> None:
+    def join(self, *paths: str, **kwargs: Any) -> bool:
         """
         Ensures that desired async write threads are properly joined. `join()`
         should be called at the very end of any script that uses the asynchronous
         `opena` feature.
 
+        Usage:
+            Wait for asynchronous methods operating on specific file paths to
+            complete.
+                join("path/to/file1.txt")
+                join("path/to/file2.txt", "path/to/file3.txt")
+            Wait for all asynchronous methods to complete.
+                join()
+
         Args:
-            path (str): Pass in a file path and all of the threads that are operating
-                on that file path will be joined. If no path is passed in, then all
-                threads operating on all file paths will be joined.
+            *paths (str): Pass in any number of file paths and `join` will wait
+                until all asynchronous activity for those paths is complete. If no
+                paths are passed in, then `join` will wait until all asynchronous
+                jobs are complete.
         """
-        for path_handler in self._async_handlers_used:
-            path_handler._join(path, **kwargs)
+        success = True
+        if not paths:        # Join all.
+            for handler in self._async_handlers:
+                success = handler._join(**kwargs) and success
+            self._async_handlers.clear()
+        else:               # Join specific paths.
+            for path in paths:
+                success = self.__get_path_handler(path)._join(path, **kwargs) and success
+        return success
 
     def copy(
         self, src_path: str, dst_path: str, overwrite: bool = False, **kwargs: Any

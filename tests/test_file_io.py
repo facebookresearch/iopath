@@ -40,7 +40,7 @@ class TestNativeIO(unittest.TestCase):
     def setUp(self) -> None:
         # Reset class variables set by methods before each test.
         self._pathmgr.set_cwd(None)
-        self._pathmgr._async_handlers_used.clear()
+        self._pathmgr._async_handlers.clear()
 
     def test_open(self) -> None:
         # pyre-ignore
@@ -90,10 +90,10 @@ class TestNativeIO(unittest.TestCase):
             self.assertFalse(f.closed)
             self.assertFalse(g.closed)
 
-            # Test that `PathManager._async_handlers_used` keeps track of all
+            # Test that `PathManager._async_handlers` keeps track of all
             # `PathHandler`-s where `opena` is used.
             self.assertCountEqual(
-                [type(handler) for handler in self._pathmgr._async_handlers_used],
+                [type(handler) for handler in self._pathmgr._async_handlers],
                 [type(self._pathmgr._native_path_handler)],
             )
             # Test that 2 paths were properly logged in `NonBlockingIOManager`.
@@ -103,7 +103,7 @@ class TestNativeIO(unittest.TestCase):
             self.assertEqual(len(manager._path_to_io), 2)
         finally:
             # Join the threads to wait for files to be written.
-            self._pathmgr.join()
+            self.assertTrue(self._pathmgr.join())
 
         # Check that both files were asynchronously written and written in order.
         with self._pathmgr.open(_tmpfile+"f", "r") as f:
@@ -125,27 +125,30 @@ class TestNativeIO(unittest.TestCase):
         try:
             for _ in range(1):          # Opens 1 thread
                 with self._pathmgr.opena(_tmpfile+"1", "w") as f:
-                    f.write(_tmpfile_contents)
+                    f.write(f"{_tmpfile_contents}-1")
             for _ in range(2):          # Opens 2 threads
                 with self._pathmgr.opena(_tmpfile+"2", "w") as f:
-                    f.write(_tmpfile_contents+"2")
+                    f.write(f"{_tmpfile_contents}-2")
             for _ in range(3):          # Opens 3 threads
                 with self._pathmgr.opena(_tmpfile+"3", "w") as f:
-                    f.write(_tmpfile_contents+"3")
-            # Join the threads for the 2nd file and ensure threadpool completed.
+                    f.write(f"{_tmpfile_contents}-3")
+            # Join the threads for the 1st and 3rd file and ensure threadpool completed.
             _path_to_io_copy = dict(_path_to_io)
-            self._pathmgr.join(_tmpfile+"2")    # Removes `_tmpfile+"2"` from `_path_to_io`
-            self.assertTrue(_path_to_io_copy[_tmpfile+"2"]._consumer.done())
-            self.assertEqual(len(_path_to_io), 2)                  # 2 files remaining
+            self.assertTrue(
+                self._pathmgr.join(_tmpfile+"1", _tmpfile+"3")  # Removes paths from `_path_to_io`.
+            )
+            self.assertTrue(_path_to_io_copy[_tmpfile+"1"]._consumer.done())
+            self.assertTrue(_path_to_io_copy[_tmpfile+"3"]._consumer.done())
+            self.assertEqual(len(_path_to_io), 1)               # 1 file remaining
         finally:
             # Join all the remaining threads
             _path_to_io_copy = dict(_path_to_io)
-            self._pathmgr.join()
+            self.assertTrue(self._pathmgr.join())
 
         # Ensure threadpools completed.
-        self.assertTrue(_path_to_io_copy[_tmpfile+"1"]._consumer.done())
-        self.assertTrue(_path_to_io_copy[_tmpfile+"3"]._consumer.done())
-        self.assertEqual(len(_path_to_io), 0)                  # 0 files remaining
+        self.assertTrue(_path_to_io_copy[_tmpfile+"2"]._consumer.done())
+        self.assertEqual(len(self._pathmgr._async_handlers), 0)
+        self.assertEqual(len(_path_to_io), 0)                   # 0 files remaining
 
     def test_get_local_path(self) -> None:
         self.assertEqual(

@@ -2,9 +2,9 @@
 
 import concurrent.futures
 import io
-import traceback
+import logging
 from queue import Queue
-from typing import Callable, Optional, Union
+from typing import Callable, IO, Optional, Union
 
 
 class NonBlockingIOManager:
@@ -34,7 +34,7 @@ class NonBlockingIOManager:
         newline: Optional[str] = None,
         closefd: bool = True,
         opener: Optional[Callable] = None,
-    ):
+    ) -> Union[IO[str], IO[bytes]]:
         """
         Called by `PathHandler._opena` with the path and returns
         the single `NonBlockingIO` instance attached to the path.
@@ -53,16 +53,16 @@ class NonBlockingIOManager:
         )
         return self._path_to_io[path]
 
-    # TODO: Allow any number of path args to be passed in.
-    def _join(self, path: Optional[str] = None):
+    def _join(self, path: Optional[str] = None) -> bool:
         """
         Cleans up the ThreadPool for each of the `NonBlockingIO`
         objects and ensures all files are closed.
 
         Args:
-            path (str): Pass in a file path and all of the threads that are operating
-                on that file path will be joined. If no path is passed in, then all
-                threads operating on all file paths will be joined.
+            path (str): Pass in a file path and all of the threads that
+                are operating on that file path will be joined. If no
+                path is passed in, then all threads operating on all file
+                paths will be joined.
         """
         if path and path not in self._path_to_io:
             raise ValueError(
@@ -72,11 +72,17 @@ class NonBlockingIOManager:
         # If a `_close` call fails, we print the error and continue
         # closing the rest of the IO objects.
         paths_to_close = [path] if path else list(self._path_to_io.keys())
+        success = True
         for _path in paths_to_close:
             try:
                 self._path_to_io.pop(_path)._close()
             except Exception:
-                traceback.print_exc()
+                logger = logging.getLogger(__name__)
+                logger.exception(
+                    f"`NonBlockingIO` object for {_path} failed to close."
+                )
+                success = False
+        return success
 
 
 # NOTE: We currently only support asynchronous writes (not reads).
@@ -161,7 +167,7 @@ class NonBlockingIO(io.IOBase):
             ) as f:
                 f.write(item)
 
-    def close(self) -> bool:
+    def close(self) -> None:
         """
         Override the ContextManager `close` function so that the
         `NonBlockingIO` object remains open for the duration of
