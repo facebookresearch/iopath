@@ -872,7 +872,7 @@ class PathManager:
     def join(self, *paths: str, **kwargs: Any) -> bool:
         """
         Ensures that desired async write threads are properly joined. `join()`
-        should be called at the very end of any script that uses the asynchronous
+        must be called at the very end of any script that uses the asynchronous
         `opena` feature.
 
         Usage:

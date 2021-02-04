@@ -137,16 +137,16 @@ class TestNativeIO(unittest.TestCase):
             self.assertTrue(
                 self._pathmgr.join(_tmpfile+"1", _tmpfile+"3")  # Removes paths from `_path_to_io`.
             )
-            self.assertTrue(_path_to_io_copy[_tmpfile+"1"]._consumer.done())
-            self.assertTrue(_path_to_io_copy[_tmpfile+"3"]._consumer.done())
+            self.assertFalse(_path_to_io_copy[_tmpfile+"1"]._thread.isAlive())
+            self.assertFalse(_path_to_io_copy[_tmpfile+"3"]._thread.isAlive())
             self.assertEqual(len(_path_to_io), 1)               # 1 file remaining
         finally:
             # Join all the remaining threads
             _path_to_io_copy = dict(_path_to_io)
             self.assertTrue(self._pathmgr.join())
 
-        # Ensure threadpools completed.
-        self.assertTrue(_path_to_io_copy[_tmpfile+"2"]._consumer.done())
+        # Ensure data cleaned up.
+        self.assertFalse(_path_to_io_copy[_tmpfile+"2"]._thread.isAlive())
         self.assertEqual(len(self._pathmgr._async_handlers), 0)
         self.assertEqual(len(_path_to_io), 0)                   # 0 files remaining
 

@@ -4,6 +4,7 @@ import concurrent.futures
 import io
 import logging
 from queue import Queue
+from threading import Thread
 from typing import Callable, IO, Optional, Union
 
 
@@ -23,6 +24,11 @@ class NonBlockingIOManager:
             cls.__instance = object.__new__(cls)
             cls.__instance._path_to_io = {}
         return cls.__instance
+
+    def __init__(self) -> None:
+        # Keep track of a thread pool that `NonBlockingIO` instances
+        # add jobs to.
+        self._pool = concurrent.futures.ThreadPoolExecutor()
 
     def get_io_for_path(
         self,
@@ -44,6 +50,7 @@ class NonBlockingIOManager:
         self._path_to_io[path] = NonBlockingIO(
             path,
             mode,
+            thread_pool=self._pool,
             buffering=buffering,
             encoding=encoding,
             errors=errors,
@@ -82,6 +89,8 @@ class NonBlockingIOManager:
                     f"`NonBlockingIO` object for {_path} failed to close."
                 )
                 success = False
+        if not path:
+            self._pool.shutdown()
         return success
 
 
@@ -91,6 +100,7 @@ class NonBlockingIO(io.IOBase):
         self,
         path: str,
         mode: str,
+        thread_pool: concurrent.futures.ThreadPoolExecutor,
         buffering: int = -1,
         encoding: Optional[str] = None,
         errors: Optional[str] = None,
@@ -114,6 +124,8 @@ class NonBlockingIO(io.IOBase):
                 async writing feature.
         """
         super().__init__()
+        # TODO: Make sure that write() args can change. Right now, they are only
+        # set the first time `opena` is called.
         self._path = path
         self._mode = mode
         self._buffering = buffering
@@ -123,9 +135,10 @@ class NonBlockingIO(io.IOBase):
         self._closefd = closefd
         self._opener = opener
 
+        self._thread_pool = thread_pool
         self._write_queue = Queue()
-        self._pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
-        self._consumer = self._pool.submit(self._write)
+        self._thread = Thread(target=self._poll_jobs)
+        self._thread.start()
 
     @property
     def name(self) -> str:
@@ -146,26 +159,36 @@ class NonBlockingIO(io.IOBase):
         """
         self._write_queue.put(b)
 
-    def _write(self) -> None:
+    def _poll_jobs(self) -> None:
         """
-        The ThreadPool runs this block of code and returns when
-        notified to close.
+        A single thread runs this loop. It waits for an object to be
+        placed in `write_queue` and submits it to `NonBlockingIOManager`
+        to be written. It then waits for the write job to be completed
+        before looping to ensure write order.
         """
         while True:
             item = self._write_queue.get()
-            if item is None:        # Signal that ThreadPool should close
+            if item is None:        # Signal that thread should close.
                 break
-            with open(
-                self._path,
-                self._mode,
-                buffering=self._buffering,
-                encoding=self._encoding,
-                errors=self._errors,
-                newline=self._newline,
-                closefd=self._closefd,
-                opener=self._opener,
-            ) as f:
-                f.write(item)
+            consumer = self._thread_pool.submit(self._write, item)
+            consumer.result()       # Wait for write to complete.
+
+    def _write(self, item):
+        """
+        Job that is submitted to the `NonBlockingIOManager` threadpool
+        by `_poll_jobs`.
+        """
+        with open(
+            self._path,
+            self._mode,
+            buffering=self._buffering,
+            encoding=self._encoding,
+            errors=self._errors,
+            newline=self._newline,
+            closefd=self._closefd,
+            opener=self._opener,
+        ) as f:
+            f.write(item)
 
     def close(self) -> None:
         """
@@ -181,8 +204,7 @@ class NonBlockingIO(io.IOBase):
         """
         self._write_queue.put(None)
         try:
-            self._consumer.result()
+            self._thread.join()
         finally:
-            self._pool.shutdown()
             # Close fd without errors since the errors are raised in `_join`.
             super().close()
