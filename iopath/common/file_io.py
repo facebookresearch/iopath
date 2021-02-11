@@ -365,7 +365,7 @@ class NativePathHandler(PathHandler):
     """
 
     _cwd = None
-    _non_blocking_io_manager = NonBlockingIOManager()
+    _non_blocking_io_manager = None
 
     def _get_local_path(self, path: str, **kwargs: Any) -> str:
         self._check_kwargs(kwargs)
@@ -482,6 +482,8 @@ class NativePathHandler(PathHandler):
             file: a file-like object with asynchronous methods.
         """
         self._check_kwargs(kwargs)
+        if not self._non_blocking_io_manager:
+            self._non_blocking_io_manager = NonBlockingIOManager()
         path = os.path.normpath(self._get_path_with_cwd(path))
         return self._non_blocking_io_manager.get_non_blocking_io(
             path,

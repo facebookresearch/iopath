@@ -114,9 +114,6 @@ class TestNativeIO(unittest.TestCase):
         _filename = "async.txt"
         _tmpfile = os.path.join(self._tmpdir, _filename)
         _tmpfile_contents = "Async Text"
-        _path_to_data = (
-            self._pathmgr._native_path_handler._non_blocking_io_manager._path_to_data
-        )
         try:
             for _ in range(1):          # Opens 1 thread
                 with self._pathmgr.opena(_tmpfile+"1", "w") as f:
@@ -127,6 +124,9 @@ class TestNativeIO(unittest.TestCase):
             for _ in range(3):          # Opens 3 threads
                 with self._pathmgr.opena(_tmpfile+"3", "w") as f:
                     f.write(f"{_tmpfile_contents}-3")
+            _path_to_data = (
+                self._pathmgr._native_path_handler._non_blocking_io_manager._path_to_data
+            )
             # Join the threads for the 1st and 3rd file and ensure threadpool completed.
             _path_to_data_copy = dict(_path_to_data)
             self.assertTrue(
@@ -152,9 +152,6 @@ class TestNativeIO(unittest.TestCase):
         _file1 = os.path.join(self._tmpdir, _filename)
         _file2 = os.path.join(self._tmpdir, ".", _filename)
         self.assertNotEqual(_file1, _file2)
-        _path_to_data = (
-            self._pathmgr._native_path_handler._non_blocking_io_manager._path_to_data
-        )
         try:
             _file1_text = "File1 text"
             _file2_text = "File2 text"
@@ -162,6 +159,9 @@ class TestNativeIO(unittest.TestCase):
                 f.write(_file1_text)
             with self._pathmgr.opena(_file2, "a") as f:
                 f.write(_file2_text)
+            _path_to_data = (
+                self._pathmgr._native_path_handler._non_blocking_io_manager._path_to_data
+            )
             # Check that `file2` is marked as the same file as `file1`.
             self.assertEqual(len(_path_to_data), 1)
             self._pathmgr.join()
