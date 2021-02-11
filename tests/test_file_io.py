@@ -75,9 +75,9 @@ class TestNativeIO(unittest.TestCase):
         _tmpfile = os.path.join(self._tmpdir, "async.txt")
         try:
             # Write the files.
-            with self._pathmgr.opena(_tmpfile+"f", "a") as f:
+            with self._pathmgr.opena(_tmpfile+"f", "w") as f:
                 f.write("f1 ")
-                with self._pathmgr.opena(_tmpfile+"g", "a") as g:
+                with self._pathmgr.opena(_tmpfile+"g", "w") as g:
                     f.write("f2 ")
                     g.write("g1 ")
                     f.write("f3 ")
@@ -86,9 +86,6 @@ class TestNativeIO(unittest.TestCase):
                 f.write("f5 ")
             F_STR = "f1 f2 f3 f4 f5 "
             G_STR = "g1 "
-            # Test that neither `NonBlockingIO` objects `f` and `g` are closed.
-            self.assertFalse(f.closed)
-            self.assertFalse(g.closed)
 
             # Test that `PathManager._async_handlers` keeps track of all
             # `PathHandler`-s where `opena` is used.
@@ -100,7 +97,7 @@ class TestNativeIO(unittest.TestCase):
             manager = (
                 self._pathmgr._native_path_handler._non_blocking_io_manager
             )
-            self.assertEqual(len(manager._path_to_io), 2)
+            self.assertEqual(len(manager._path_to_data), 2)
         finally:
             # Join the threads to wait for files to be written.
             self.assertTrue(self._pathmgr.join())
@@ -111,16 +108,14 @@ class TestNativeIO(unittest.TestCase):
         with self._pathmgr.open(_tmpfile+"g", "r") as g:
             self.assertEqual(g.read(), G_STR)
         # Test that both `NonBlockingIO` objects `f` and `g` are finally closed.
-        self.assertEqual(len(manager._path_to_io), 0)
-        self.assertTrue(f.closed)
-        self.assertTrue(g.closed)
+        self.assertEqual(len(manager._path_to_data), 0)
 
     def test_opena_join_behavior(self) -> None:
         _filename = "async.txt"
         _tmpfile = os.path.join(self._tmpdir, _filename)
         _tmpfile_contents = "Async Text"
-        _path_to_io = (
-            self._pathmgr._native_path_handler._non_blocking_io_manager._path_to_io
+        _path_to_data = (
+            self._pathmgr._native_path_handler._non_blocking_io_manager._path_to_data
         )
         try:
             for _ in range(1):          # Opens 1 thread
@@ -133,22 +128,22 @@ class TestNativeIO(unittest.TestCase):
                 with self._pathmgr.opena(_tmpfile+"3", "w") as f:
                     f.write(f"{_tmpfile_contents}-3")
             # Join the threads for the 1st and 3rd file and ensure threadpool completed.
-            _path_to_io_copy = dict(_path_to_io)
+            _path_to_data_copy = dict(_path_to_data)
             self.assertTrue(
-                self._pathmgr.join(_tmpfile+"1", _tmpfile+"3")  # Removes paths from `_path_to_io`.
+                self._pathmgr.join(_tmpfile+"1", _tmpfile+"3")      # Removes paths from `_path_to_io`.
             )
-            self.assertFalse(_path_to_io_copy[_tmpfile+"1"]._thread.isAlive())
-            self.assertFalse(_path_to_io_copy[_tmpfile+"3"]._thread.isAlive())
-            self.assertEqual(len(_path_to_io), 1)               # 1 file remaining
+            self.assertFalse(_path_to_data_copy[_tmpfile+"1"].thread.isAlive())
+            self.assertFalse(_path_to_data_copy[_tmpfile+"3"].thread.isAlive())
+            self.assertEqual(len(_path_to_data), 1)            # 1 file remaining
         finally:
             # Join all the remaining threads
-            _path_to_io_copy = dict(_path_to_io)
+            _path_to_data_copy = dict(_path_to_data)
             self.assertTrue(self._pathmgr.join())
 
         # Ensure data cleaned up.
-        self.assertFalse(_path_to_io_copy[_tmpfile+"2"]._thread.isAlive())
+        self.assertFalse(_path_to_data_copy[_tmpfile+"2"].thread.isAlive())
         self.assertEqual(len(self._pathmgr._async_handlers), 0)
-        self.assertEqual(len(_path_to_io), 0)                   # 0 files remaining
+        self.assertEqual(len(_path_to_data), 0)                     # 0 files remaining
 
     def test_opena_normpath(self) -> None:
         _filename = "async.txt"
@@ -157,18 +152,18 @@ class TestNativeIO(unittest.TestCase):
         _file1 = os.path.join(self._tmpdir, _filename)
         _file2 = os.path.join(self._tmpdir, ".", _filename)
         self.assertNotEqual(_file1, _file2)
-        _path_to_io = (
-            self._pathmgr._native_path_handler._non_blocking_io_manager._path_to_io
+        _path_to_data = (
+            self._pathmgr._native_path_handler._non_blocking_io_manager._path_to_data
         )
         try:
             _file1_text = "File1 text"
             _file2_text = "File2 text"
-            with self._pathmgr.opena(_file1, "a") as f:
+            with self._pathmgr.opena(_file1, "w") as f:
                 f.write(_file1_text)
             with self._pathmgr.opena(_file2, "a") as f:
                 f.write(_file2_text)
             # Check that `file2` is marked as the same file as `file1`.
-            self.assertEqual(len(_path_to_io), 1)
+            self.assertEqual(len(_path_to_data), 1)
             self._pathmgr.join()
             # Check that both file paths give the same file contents.
             with self._pathmgr.open(_file1, "r") as f:
@@ -177,6 +172,23 @@ class TestNativeIO(unittest.TestCase):
                 self.assertEqual(f.read(), _file1_text + _file2_text)
         finally:
             self._pathmgr.join()
+
+    def test_opena_args(self) -> None:
+        _file = os.path.join(self._tmpdir, "async.txt")
+        try:
+            # Make sure that `opena` args are used correctly by using
+            # different newline args.
+            with self._pathmgr.opena(_file, "w", newline="\r\n") as f:
+                f.write("1\n")
+            with self._pathmgr.opena(_file, "a", newline="\n") as f:
+                f.write("2\n3")
+        finally:
+            self._pathmgr.join()
+
+        # Read the raw file data without converting newline endings to see
+        # if the `opena` args were used correctly.
+        with self._pathmgr.open(_file, "r", newline="") as f:
+            self.assertEqual(f.read(), "1\r\n2\n3")
 
     def test_get_local_path(self) -> None:
         self.assertEqual(

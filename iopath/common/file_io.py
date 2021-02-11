@@ -476,14 +476,14 @@ class NativePathHandler(PathHandler):
 
         Args:
             Same args as `_open()`
-            NOTE: For now, `mode` must be "w".
+            NOTE: For now, `mode` must be "w" or "wb".
 
         Returns:
             file: a file-like object with asynchronous methods.
         """
         self._check_kwargs(kwargs)
         path = os.path.normpath(self._get_path_with_cwd(path))
-        return self._non_blocking_io_manager.get_io_for_path(
+        return self._non_blocking_io_manager.get_non_blocking_io(
             path,
             mode,
             buffering=buffering,

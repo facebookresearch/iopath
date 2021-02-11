@@ -3,34 +3,41 @@
 import concurrent.futures
 import io
 import logging
+from dataclasses import dataclass
 from queue import Queue
 from threading import Thread
 from typing import Callable, IO, Optional, Union
 
 
+@dataclass
+class PathData:
+    """
+    Manage the IO job queue and polling thread for a single path.
+    """
+    queue: Queue
+    thread: Thread
+
+
 class NonBlockingIOManager:
     """
     All `opena` calls pass through this class so that it can
-    keep track of the IO objects for proper cleanup at the end
+    keep track of the threads for proper cleanup at the end
     of the script. Each path that is opened with `opena` is
-    assigned a single `NonBlockingIO` object that is kept open
-    until it is cleaned up by `PathManager.join()` or
-    automatically when an error is thrown.
+    assigned a single queue and polling thread that is kept
+    open until it is cleaned up by `PathManager.join()`.
     """
     # Ensure `NonBlockingIOManager` is a singleton.
     __instance = None
-    def __new__(cls):
+    def __new__(cls, *args, **kwargs):
         if cls.__instance is None:
-            cls.__instance = object.__new__(cls)
-            cls.__instance._path_to_io = {}
+            cls.__instance = object.__new__(cls, *args, **kwargs)
+            cls.__instance._path_to_data = {}
+            # Keep track of a thread pool that `NonBlockingIO` instances
+            # add jobs to.
+            cls.__instance._pool = concurrent.futures.ThreadPoolExecutor()
         return cls.__instance
 
-    def __init__(self) -> None:
-        # Keep track of a thread pool that `NonBlockingIO` instances
-        # add jobs to.
-        self._pool = concurrent.futures.ThreadPoolExecutor()
-
-    def get_io_for_path(
+    def get_non_blocking_io(
         self,
         path: str,
         mode: str = "r",
@@ -43,14 +50,20 @@ class NonBlockingIOManager:
     ) -> Union[IO[str], IO[bytes]]:
         """
         Called by `PathHandler._opena` with the path and returns
-        the single `NonBlockingIO` instance attached to the path.
+        a `NonBlockingIO` instance.
         """
-        if path in self._path_to_io:
-            return self._path_to_io[path]
-        self._path_to_io[path] = NonBlockingIO(
+        if path not in self._path_to_data:
+            queue = Queue()
+            t = Thread(target=self._poll_jobs, args=(queue,))
+            t.start()
+            self._path_to_data[path] = PathData(queue, t)
+
+        return NonBlockingIO(
             path,
             mode,
-            thread_pool=self._pool,
+            notify_manager=lambda io_callable: (
+                self._path_to_data[path].queue.put(io_callable)
+            ),
             buffering=buffering,
             encoding=encoding,
             errors=errors,
@@ -58,35 +71,51 @@ class NonBlockingIOManager:
             closefd=closefd,
             opener=opener,
         )
-        return self._path_to_io[path]
+
+    def _poll_jobs(self, queue: Optional[Callable[[], None]]) -> None:
+        """
+        A single thread runs this loop. It waits for an IO callable to be
+        placed in a specific path's `Queue`. It then waits for the IO job
+        to be completed before looping to ensure write order.
+        """
+        while True:
+            # This item can be any of:
+            #   - file.write(b)
+            #   - file.close()
+            #   - None
+            item = queue.get()                      # Blocks until item read.
+            if item is None:                        # Thread join signal.
+                break
+            self._pool.submit(item).result()        # Wait for job to finish.
 
     def _join(self, path: Optional[str] = None) -> bool:
         """
-        Cleans up the ThreadPool for each of the `NonBlockingIO`
-        objects and ensures all files are closed.
+        Cleans up the ThreadPool and joins all threads.
 
         Args:
-            path (str): Pass in a file path and all of the threads that
-                are operating on that file path will be joined. If no
-                path is passed in, then all threads operating on all file
-                paths will be joined.
+            path (str): Pass in a file path and will wait for the
+                asynchronous jobs to be completed for that file path.
+                If no path is passed in, then all threads operating
+                on all file paths will be joined.
         """
-        if path and path not in self._path_to_io:
+        if path and path not in self._path_to_data:
             raise ValueError(
                 f"{path} has no async IO associated with it. "
                 f"Make sure `opena({path})` is called first."
             )
         # If a `_close` call fails, we print the error and continue
         # closing the rest of the IO objects.
-        paths_to_close = [path] if path else list(self._path_to_io.keys())
+        paths_to_close = [path] if path else list(self._path_to_data.keys())
         success = True
         for _path in paths_to_close:
             try:
-                self._path_to_io.pop(_path)._close()
+                path_data = self._path_to_data.pop(_path)
+                path_data.queue.put(None)
+                path_data.thread.join()
             except Exception:
                 logger = logging.getLogger(__name__)
                 logger.exception(
-                    f"`NonBlockingIO` object for {_path} failed to close."
+                    f"`NonBlockingIO` thread for {_path} failed to join."
                 )
                 success = False
         if not path:
@@ -100,7 +129,7 @@ class NonBlockingIO(io.IOBase):
         self,
         path: str,
         mode: str,
-        thread_pool: concurrent.futures.ThreadPoolExecutor,
+        notify_manager: Callable[[Callable[[], None]], None],
         buffering: int = -1,
         encoding: Optional[str] = None,
         errors: Optional[str] = None,
@@ -109,10 +138,11 @@ class NonBlockingIO(io.IOBase):
         opener: Optional[Callable] = None,
     ) -> None:
         """
-        Manages the async writes that are called with `f.write()` for a
-        specific path. Uses a ThreadPool with a single worker and a Queue
-        to manage the write jobs that need to be run to ensure order
-        preservation.
+        Returned to the user on an `opena` call. Uses a Queue to manage the
+        IO jobs that need to be run to ensure order preservation and a
+        polling Thread that checks the Queue. Implementation for these are
+        lifted to `NonBlockingIOManager` since `NonBlockingIO` closes upon
+        leaving the context block.
 
         NOTE: Writes to the same path are serialized so they are written in
         the same order as they were called but writes to distinct paths can
@@ -122,23 +152,27 @@ class NonBlockingIO(io.IOBase):
             path (str): a URI that implements the `PathHandler._opena` method.
             mode (str): currently must be "w" or "wb" as we only implement an
                 async writing feature.
+            notify_manager (Callable): a callback function passed in from the
+                `NonBlockingIOManager` so that all IO jobs can be stored in
+                the manager.
         """
         super().__init__()
-        # TODO: Make sure that write() args can change. Right now, they are only
-        # set the first time `opena` is called.
         self._path = path
         self._mode = mode
-        self._buffering = buffering
-        self._encoding = encoding
-        self._errors = errors
-        self._newline = newline
-        self._closefd = closefd
-        self._opener = opener
+        self._notify_manager = notify_manager
 
-        self._thread_pool = thread_pool
-        self._write_queue = Queue()
-        self._thread = Thread(target=self._poll_jobs)
-        self._thread.start()
+        # `_file` will be closed by context manager exit or when `.close()`
+        # is called explicitly.
+        self._file = open(  # noqa: P201
+            self._path,
+            self._mode,
+            buffering=buffering,
+            encoding=encoding,
+            errors=errors,
+            newline=newline,
+            closefd=closefd,
+            opener=opener,
+        )
 
     @property
     def name(self) -> str:
@@ -153,58 +187,16 @@ class NonBlockingIO(io.IOBase):
     def writable(self) -> bool:
         return True
 
-    def write(self, b: Union[bytes, bytearray]) -> None:
-        """
-        Add the write job to the queue.
-        """
-        self._write_queue.put(b)
-
-    def _poll_jobs(self) -> None:
-        """
-        A single thread runs this loop. It waits for an object to be
-        placed in `write_queue` and submits it to `NonBlockingIOManager`
-        to be written. It then waits for the write job to be completed
-        before looping to ensure write order.
-        """
-        while True:
-            item = self._write_queue.get()
-            if item is None:        # Signal that thread should close.
-                break
-            consumer = self._thread_pool.submit(self._write, item)
-            consumer.result()       # Wait for write to complete.
-
-    def _write(self, item):
-        """
-        Job that is submitted to the `NonBlockingIOManager` threadpool
-        by `_poll_jobs`.
-        """
-        with open(
-            self._path,
-            self._mode,
-            buffering=self._buffering,
-            encoding=self._encoding,
-            errors=self._errors,
-            newline=self._newline,
-            closefd=self._closefd,
-            opener=self._opener,
-        ) as f:
-            f.write(item)
-
     def close(self) -> None:
         """
-        Override the ContextManager `close` function so that the
-        `NonBlockingIO` object remains open for the duration of
-        the script until it is explicitly closed by `_close`.
+        Called on `f.close()` or automatically by the context manager.
+        We add the `close` call to the file's queue to make sure that
+        the file is not closed before all of the jobs are complete.
         """
-        return
+        self._notify_manager(lambda: self._file.close())
 
-    def _close(self) -> None:
+    def write(self, b: Union[bytes, bytearray]) -> None:
         """
-        Cleanup function called when `join` is called.
+        Called on `f.write()`. Gives the manager the write job to call.
         """
-        self._write_queue.put(None)
-        try:
-            self._thread.join()
-        finally:
-            # Close fd without errors since the errors are raised in `_join`.
-            super().close()
+        self._notify_manager(lambda: self._file.write(b))
