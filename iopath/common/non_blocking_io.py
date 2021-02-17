@@ -58,18 +58,29 @@ class NonBlockingIOManager:
             t.start()
             self._path_to_data[path] = PathData(queue, t)
 
-        return NonBlockingIO(
+        binary = "b" in mode
+        buffer = NonBlockingIO(
             path,
-            mode,
+            mode+"b" if not binary else mode,
             notify_manager=lambda io_callable: (
                 self._path_to_data[path].queue.put(io_callable)
             ),
             buffering=buffering,
+            encoding=encoding if binary else None,
+            errors=errors if binary else None,
+            newline=newline if binary else None,
+            closefd=closefd,
+            opener=opener,
+        )
+        if binary:
+            return buffer
+        return io.TextIOWrapper(
+            buffer,
             encoding=encoding,
             errors=errors,
             newline=newline,
-            closefd=closefd,
-            opener=opener,
+            line_buffering=False,
+            write_through=True,
         )
 
     def _poll_jobs(self, queue: Optional[Callable[[], None]]) -> None:
@@ -125,6 +136,8 @@ class NonBlockingIOManager:
 
 # NOTE: We currently only support asynchronous writes (not reads).
 class NonBlockingIO(io.IOBase):
+    MAX_BUFFER_BYTES = 10 * 1024 * 1024     # 10 MiB
+
     def __init__(
         self,
         path: str,
@@ -173,6 +186,8 @@ class NonBlockingIO(io.IOBase):
             closefd=closefd,
             opener=opener,
         )
+        self._buffer = io.BytesIO()
+        self._buffer_size = buffering if buffering > 0 else self.MAX_BUFFER_BYTES
 
     @property
     def name(self) -> str:
@@ -193,10 +208,36 @@ class NonBlockingIO(io.IOBase):
         We add the `close` call to the file's queue to make sure that
         the file is not closed before all of the jobs are complete.
         """
+        self.flush()
         self._notify_manager(lambda: self._file.close())
 
     def write(self, b: Union[bytes, bytearray]) -> None:
         """
         Called on `f.write()`. Gives the manager the write job to call.
         """
-        self._notify_manager(lambda: self._file.write(b))
+        with memoryview(b) as view:
+            self._buffer.write(view)
+        if self._buffer.tell() < self._buffer_size: return
+        self.flush()
+
+    def flush(self) -> None:
+        """
+        Called on `f.write()` if the buffer is filled (or overfilled). Can
+        also be explicitly called by user.
+        NOTE: Buffering is used in a strict manner. Any buffer that exceeds
+        `self._buffer_size` will be broken into multiple write jobs where
+        each has a write call with `self._buffer_size` size.
+        """
+        if self._buffer.tell() == 0:
+            return
+        pos = 0
+        total_size = self._buffer.seek(0, io.SEEK_END)
+        self._buffer.seek(0)
+        # Chunk the buffer in case it is larger than the buffer size.
+        while pos < total_size:
+            item = self._buffer.read(self._buffer_size)
+            self._notify_manager(lambda item=item: self._file.write(item))
+            pos += self._buffer_size
+        # Reset the buffer.
+        self._buffer.seek(0)
+        self._buffer.truncate()

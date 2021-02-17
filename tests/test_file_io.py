@@ -145,6 +145,41 @@ class TestNativeIO(unittest.TestCase):
         self.assertEqual(len(self._pathmgr._async_handlers), 0)
         self.assertEqual(len(_path_to_data), 0)                     # 0 files remaining
 
+    def test_opena_write_buffer(self) -> None:
+        _file = os.path.join(self._tmpdir, "async.txt")
+
+        try:
+            # Test IO doesn't flush until buffer is full.
+            f = self._pathmgr.opena(_file, "w", buffering=10)
+            with patch.object(f.buffer, 'flush', wraps=f.buffer.flush) as mock_flush:
+                with patch.object(f.buffer, '_notify_manager', wraps=f.buffer._notify_manager) as mock_notify_manager:
+                    f.write("."*9)
+                    mock_flush.assert_not_called()      # buffer not filled - don't flush
+                    mock_notify_manager.assert_not_called()
+                    # Should flush when full.
+                    f.write("."*13)
+                    mock_flush.assert_called_once()     # buffer filled - should flush
+                    # Should notify manager 3 times: 3 write calls.
+                    # Buffer is split into chunks of size 10, 10, and 2.
+                    self.assertEqual(mock_notify_manager.call_count, 3)
+                    mock_notify_manager.reset_mock()
+                    # Should notify manager 1 time: 1 close call.
+                    f.close()
+                    self.assertEqual(mock_notify_manager.call_count, 1)
+
+            # Test IO flushes on file close.
+            f = self._pathmgr.opena(_file, "a", buffering=10)
+            with patch.object(f.buffer, 'flush', wraps=f.buffer.flush) as mock_flush:
+                f.write("."*5)
+                mock_flush.assert_not_called()
+                f.close()
+                mock_flush.assert_called()              # flush on exit
+        finally:
+            self._pathmgr.join()
+
+        with self._pathmgr.open(_file, "r") as f:
+            self.assertEqual(f.read(), "."*27)
+
     def test_opena_normpath(self) -> None:
         _filename = "async.txt"
         # `_file1` and `_file2` should represent the same path but have different
