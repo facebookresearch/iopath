@@ -24,7 +24,7 @@ class NonBlockingIOManager:
     keep track of the threads for proper cleanup at the end
     of the script. Each path that is opened with `opena` is
     assigned a single queue and polling thread that is kept
-    open until it is cleaned up by `PathManager.join()`.
+    open until it is cleaned up by `PathManager.async_join()`.
     """
     # Ensure `NonBlockingIOManager` is a singleton.
     __instance = None
@@ -101,7 +101,8 @@ class NonBlockingIOManager:
 
     def _join(self, path: Optional[str] = None) -> bool:
         """
-        Cleans up the ThreadPool and joins all threads.
+        Waits for write jobs for a specific path or waits for all
+        write jobs for the path handler if no path is provided.
 
         Args:
             path (str): Pass in a file path and will wait for the
@@ -129,9 +130,21 @@ class NonBlockingIOManager:
                     f"`NonBlockingIO` thread for {_path} failed to join."
                 )
                 success = False
-        if not path:
-            self._pool.shutdown()
         return success
+
+    def _close_thread_pool(self) -> bool:
+        """
+        Closes the ThreadPool.
+        """
+        try:
+            self._pool.shutdown()
+        except Exception:
+            logger = logging.getLogger(__name__)
+            logger.exception(
+                "`NonBlockingIO` thread pool failed to close."
+            )
+            return False
+        return True
 
 
 # NOTE: We currently only support asynchronous writes (not reads).

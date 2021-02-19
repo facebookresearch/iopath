@@ -59,13 +59,14 @@ class TestDriver:
             finally:
                 # We want this `join` call to take time. If it is instantaneous,
                 # then our async write calls are not running asynchronously.
-                print("Waiting for `torch.save` call to complete at `join()`.")
-                self._pathmgr.join()
+                print("Waiting for `torch.save` call to complete at `async_join()`.")
+                self._pathmgr.async_join()
 
             print(
-                "Time Python waited for `join()` call to finish: "
+                "Time Python waited for `async_join()` call to finish: "
                 f"{time.time() - start_time}s."
             )
+            assert self._pathmgr.async_close()
 
             checkpoint = torch.load(URI)
             for key_item_1, key_item_2 in (

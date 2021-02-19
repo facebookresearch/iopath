@@ -40,11 +40,13 @@ class TestDriver:
 
             mid_time = time.time()
             printx(f"Time taken to dispatch {self.NUM_JOBS} threads: {mid_time - start_time}")
-            printx("Calling `join()`")
-            # We want this `join` call to take time. If it is instantaneous, then our async
-            # write calls are not running asynchronously.
-            self._pathmgr.join()
-            printx(f"Time Python waited for `join()` call to finish: {time.time() - mid_time}")
+            printx("Calling `async_join()`")
+            # We want this `async_join` call to take time. If it is instantaneous, then our
+            # async write calls are not running asynchronously.
+            assert self._pathmgr.async_join()
+            printx(f"Time Python waited for `async_join()` call to finish: {time.time() - mid_time}")
+
+            assert self._pathmgr.async_close()
 
             with self._pathmgr.open(URI, "r") as f:
                 assert f.read() == FINAL_STR
@@ -52,7 +54,7 @@ class TestDriver:
             printx("Async Writes Test finish.")
             printx(
                 "Passing metric: "
-                "If the `join()` call took more than a negligible time to complete, "
+                "If the `async_join()` call took more than a negligible time to complete, "
                 "then Python waited for the threads to finish and the Async Writes "
                 "Test SUCCEEDS. Otherwise FAILURE."
             )

@@ -23,4 +23,5 @@ class TestNonBlockingIOManager(unittest.TestCase):
                 self.assertEqual(obj1, obj2)
                 self.assertIn(URI, obj2._path_to_data)
             finally:
-                obj1._join()
+                self.assertTrue(obj1._join())
+                self.assertTrue(obj1._close_thread_pool())

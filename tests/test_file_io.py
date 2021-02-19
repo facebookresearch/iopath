@@ -100,7 +100,7 @@ class TestNativeIO(unittest.TestCase):
             self.assertEqual(len(manager._path_to_data), 2)
         finally:
             # Join the threads to wait for files to be written.
-            self.assertTrue(self._pathmgr.join())
+            self.assertTrue(self._pathmgr.async_close())
 
         # Check that both files were asynchronously written and written in order.
         with self._pathmgr.open(_tmpfile+"f", "r") as f:
@@ -130,7 +130,7 @@ class TestNativeIO(unittest.TestCase):
             # Join the threads for the 1st and 3rd file and ensure threadpool completed.
             _path_to_data_copy = dict(_path_to_data)
             self.assertTrue(
-                self._pathmgr.join(_tmpfile+"1", _tmpfile+"3")      # Removes paths from `_path_to_io`.
+                self._pathmgr.async_join(_tmpfile+"1", _tmpfile+"3")      # Removes paths from `_path_to_io`.
             )
             self.assertFalse(_path_to_data_copy[_tmpfile+"1"].thread.isAlive())
             self.assertFalse(_path_to_data_copy[_tmpfile+"3"].thread.isAlive())
@@ -138,7 +138,7 @@ class TestNativeIO(unittest.TestCase):
         finally:
             # Join all the remaining threads
             _path_to_data_copy = dict(_path_to_data)
-            self.assertTrue(self._pathmgr.join())
+            self.assertTrue(self._pathmgr.async_close())
 
         # Ensure data cleaned up.
         self.assertFalse(_path_to_data_copy[_tmpfile+"2"].thread.isAlive())
@@ -175,7 +175,7 @@ class TestNativeIO(unittest.TestCase):
                 f.close()
                 mock_flush.assert_called()              # flush on exit
         finally:
-            self._pathmgr.join()
+            self.assertTrue(self._pathmgr.async_close())
 
         with self._pathmgr.open(_file, "r") as f:
             self.assertEqual(f.read(), "."*27)
@@ -199,14 +199,37 @@ class TestNativeIO(unittest.TestCase):
             )
             # Check that `file2` is marked as the same file as `file1`.
             self.assertEqual(len(_path_to_data), 1)
-            self._pathmgr.join()
+            self.assertTrue(self._pathmgr.async_join())
             # Check that both file paths give the same file contents.
             with self._pathmgr.open(_file1, "r") as f:
                 self.assertEqual(f.read(), _file1_text + _file2_text)
             with self._pathmgr.open(_file2, "r") as f:
                 self.assertEqual(f.read(), _file1_text + _file2_text)
         finally:
-            self._pathmgr.join()
+            self.assertTrue(self._pathmgr.async_close())
+
+    def test_opena_consecutive_join_calls(self) -> None:
+        _file = os.path.join(self._tmpdir, "async.txt")
+        try:
+            self.assertTrue(self._pathmgr.async_join())
+            try:
+                with self._pathmgr.opena(_file, "a") as f:
+                    f.write("1")
+            finally:
+                self.assertTrue(self._pathmgr.async_join())
+            with self._pathmgr.open(_file, "r") as f:
+                self.assertEqual(f.read(), "1")
+
+            try:
+                f = self._pathmgr.opena(_file, "a")
+                f.write("2")
+                f.close()
+            finally:
+                self.assertTrue(self._pathmgr.async_join())
+            with self._pathmgr.open(_file, "r") as f:
+                self.assertEqual(f.read(), "12")
+        finally:
+            self.assertTrue(self._pathmgr.async_close())
 
     def test_opena_args(self) -> None:
         _file = os.path.join(self._tmpdir, "async.txt")
@@ -218,7 +241,7 @@ class TestNativeIO(unittest.TestCase):
             with self._pathmgr.opena(_file, "a", newline="\n") as f:
                 f.write("2\n3")
         finally:
-            self._pathmgr.join()
+            self.assertTrue(self._pathmgr.async_close())
 
         # Read the raw file data without converting newline endings to see
         # if the `opena` args were used correctly.
