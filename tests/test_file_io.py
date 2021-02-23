@@ -111,8 +111,7 @@ class TestNativeIO(unittest.TestCase):
         self.assertEqual(len(manager._path_to_data), 0)
 
     def test_opena_join_behavior(self) -> None:
-        _filename = "async.txt"
-        _tmpfile = os.path.join(self._tmpdir, _filename)
+        _tmpfile = os.path.join(self._tmpdir, "async.txt")
         _tmpfile_contents = "Async Text"
         try:
             for _ in range(1):          # Opens 1 thread
@@ -132,8 +131,8 @@ class TestNativeIO(unittest.TestCase):
             self.assertTrue(
                 self._pathmgr.async_join(_tmpfile+"1", _tmpfile+"3")      # Removes paths from `_path_to_io`.
             )
-            self.assertFalse(_path_to_data_copy[_tmpfile+"1"].thread.isAlive())
-            self.assertFalse(_path_to_data_copy[_tmpfile+"3"].thread.isAlive())
+            self.assertFalse(_path_to_data_copy[_tmpfile+"1"].thread.is_alive())
+            self.assertFalse(_path_to_data_copy[_tmpfile+"3"].thread.is_alive())
             self.assertEqual(len(_path_to_data), 1)            # 1 file remaining
         finally:
             # Join all the remaining threads
@@ -141,7 +140,7 @@ class TestNativeIO(unittest.TestCase):
             self.assertTrue(self._pathmgr.async_close())
 
         # Ensure data cleaned up.
-        self.assertFalse(_path_to_data_copy[_tmpfile+"2"].thread.isAlive())
+        self.assertFalse(_path_to_data_copy[_tmpfile+"2"].thread.is_alive())
         self.assertEqual(len(self._pathmgr._async_handlers), 0)
         self.assertEqual(len(_path_to_data), 0)                     # 0 files remaining
 
@@ -213,7 +212,7 @@ class TestNativeIO(unittest.TestCase):
         try:
             self.assertTrue(self._pathmgr.async_join())
             try:
-                with self._pathmgr.opena(_file, "a") as f:
+                with self._pathmgr.opena(_file, "w") as f:
                     f.write("1")
             finally:
                 self.assertTrue(self._pathmgr.async_join())
@@ -407,7 +406,7 @@ class TestNativeIO(unittest.TestCase):
         self._pathmgr.set_strict_kwargs_checking(False)
 
         self._pathmgr.copy(
-            self._tmpfile, self._tmpfile, foo="foo"  # type: ignore
+            self._tmpfile, self._tmpfile+"2", foo="foo"  # type: ignore
         )
         self._pathmgr.exists(self._tmpfile, foo="foo")  # type: ignore
         self._pathmgr.get_local_path(self._tmpfile, foo="foo")  # type: ignore
