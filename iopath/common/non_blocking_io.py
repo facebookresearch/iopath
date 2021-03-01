@@ -233,6 +233,8 @@ class NonBlockingIO(io.IOBase):
         the file is not closed before all of the jobs are complete.
         """
         self.flush()
+        # Close the last buffer created by `flush`.
+        self._notify_manager(lambda: self._buffers[-1].close())
         self._notify_manager(lambda: self._file.close())
 
     def flush(self) -> None:
@@ -254,5 +256,7 @@ class NonBlockingIO(io.IOBase):
             item = view[pos : pos + self._buffer_size]
             self._notify_manager(lambda item=item: self._file.write(item))
             pos += self._buffer_size
-        # Begin a new buffer.
+        # Close buffer immediately after being written to file and create
+        # a new buffer.
+        self._notify_manager(lambda: buffer.close())
         self._buffers.append(io.BytesIO())

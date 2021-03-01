@@ -167,13 +167,14 @@ class TestNativeIO(unittest.TestCase):
                     # Should flush when full.
                     f.write("."*13)
                     mock_flush.assert_called_once()     # buffer filled - should flush
-                    # Should notify manager 3 times: 3 write calls.
-                    # Buffer is split into chunks of size 10, 10, and 2.
-                    self.assertEqual(mock_notify_manager.call_count, 3)
+                    # `flush` should notify manager 4 times: 3 `file.write` and 1 `buffer.close`
+                    # Single buffer is split into chunks of size 10, 10, and 2.
+                    self.assertEqual(len(f.buffer._buffers), 2)  # 22-byte and 0-byte buffers
+                    self.assertEqual(mock_notify_manager.call_count, 4)
                     mock_notify_manager.reset_mock()
-                    # Should notify manager 1 time: 1 close call.
+                    # `close` should notify manager 2 times: 1 `buffer.close` and 1 `file.close`.
                     f.close()
-                    self.assertEqual(mock_notify_manager.call_count, 1)
+                    self.assertEqual(mock_notify_manager.call_count, 2)
 
             # Test IO flushes on file close.
             f = self._pathmgr.opena(_file, "a", buffering=10)
@@ -185,6 +186,8 @@ class TestNativeIO(unittest.TestCase):
         finally:
             self.assertTrue(self._pathmgr.async_close())
 
+        self.assertTrue(f.buffer._buffers[0].closed)
+        self.assertTrue(f.buffer._buffers[1].closed)
         with self._pathmgr.open(_file, "r") as f:
             self.assertEqual(f.read(), "."*27)
 
