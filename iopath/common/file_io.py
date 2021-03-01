@@ -1,6 +1,7 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
 
 import base64
+import concurrent.futures
 import errno
 import logging
 import os
@@ -136,6 +137,28 @@ class PathHandler:
     """
 
     _strict_kwargs_check = True
+
+    def __init__(
+        self,
+        async_executor: Optional[concurrent.futures.Executor] = None,
+    ) -> None:
+        """
+        When registering a `PathHandler`, the user can optionally pass in a
+        `Executor` to run the asynchronous file operations.
+        NOTE: For regular non-async operations of `PathManager`, there is
+        no need to pass `async_executor`.
+
+        Args:
+            async_executor (optional `Executor`): Used for async file operations.
+                NOTE: Async operations are only implemented for
+                `NativePathHandler`.
+                Usage:
+                ```
+                    path_handler = NativePathHandler(async_executor=exe)
+                    path_manager.register_handler(path_handler)
+                ```
+        """
+        self._non_blocking_io_executor = async_executor
 
     def _check_kwargs(self, kwargs: Dict[str, Any]) -> None:
         """
@@ -486,7 +509,9 @@ class NativePathHandler(PathHandler):
         """
         self._check_kwargs(kwargs)
         if not self._non_blocking_io_manager:
-            self._non_blocking_io_manager = NonBlockingIOManager()
+            self._non_blocking_io_manager = NonBlockingIOManager(
+                executor=self._non_blocking_io_executor,
+            )
         path = os.path.normpath(self._get_path_with_cwd(path))
         return self._non_blocking_io_manager.get_non_blocking_io(
             path,
@@ -1155,6 +1180,19 @@ class PathManager:
         """
         logger = logging.getLogger(__name__)
         assert isinstance(handler, PathHandler), handler
+
+        # Allow override of `NativePathHandler` which is automatically
+        # instantiated by `PathManager`.
+        if isinstance(handler, NativePathHandler):
+            if allow_override:
+                self._native_path_handler = handler
+            else:
+                raise ValueError(
+                    "`NativePathHandler` is registered by default. Use the "
+                    "`allow_override=True` kwarg to override it."
+                )
+            return
+
         for prefix in handler._get_supported_prefixes():
             if prefix not in self._path_handlers:
                 self._path_handlers[prefix] = handler

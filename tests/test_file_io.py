@@ -1,5 +1,6 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
 
+import concurrent.futures
 import os
 import shutil
 import tempfile
@@ -10,7 +11,13 @@ from typing import Generator, Optional
 from unittest.mock import MagicMock, patch
 
 from iopath.common import file_io
-from iopath.common.file_io import HTTPURLHandler, LazyPath, PathManager, get_cache_dir
+from iopath.common.file_io import (
+    HTTPURLHandler,
+    LazyPath,
+    NativePathHandler,
+    PathManager,
+    get_cache_dir,
+)
 from iopath.common.file_io import PathManagerFactory, g_pathmgr
 
 
@@ -40,6 +47,8 @@ class TestNativeIO(unittest.TestCase):
     def setUp(self) -> None:
         # Reset class variables set by methods before each test.
         self._pathmgr.set_cwd(None)
+        self._pathmgr._native_path_handler._non_blocking_io_manager = None
+        self._pathmgr._native_path_handler._non_blocking_io_executor = None
         self._pathmgr._async_handlers.clear()
 
     def test_open(self) -> None:
@@ -246,6 +255,36 @@ class TestNativeIO(unittest.TestCase):
         # if the `opena` args were used correctly.
         with self._pathmgr.open(_file, "r", newline="") as f:
             self.assertEqual(f.read(), "1\r\n2\n3")
+
+    def test_async_custom_executor(self) -> None:
+        # At first, neither manager nor executor are set.
+        self.assertIsNone(
+            self._pathmgr._native_path_handler._non_blocking_io_manager
+        )
+        self.assertIsNone(
+            self._pathmgr._native_path_handler._non_blocking_io_executor
+        )
+        # Then, override the `NativePathHandler` and set a custom executor.
+        executor = concurrent.futures.ThreadPoolExecutor(
+            max_workers=128, thread_name_prefix="my prefix"
+        )
+        ph = NativePathHandler(async_executor=executor)
+        self._pathmgr.register_handler(ph, allow_override=True)
+        self.assertEqual(ph, self._pathmgr._native_path_handler)
+
+        # Opening a file with `opena` initializes the manager with the
+        # executor.
+        _file = os.path.join(self._tmpdir, "async.txt")
+        try:
+            with self._pathmgr.opena(_file, "w") as f:
+                f.write("Text")
+            # Make sure the manager's executor is the same as the user's.
+            self.assertEqual(
+                executor,
+                self._pathmgr._native_path_handler._non_blocking_io_manager._pool,
+            )
+        finally:
+            self.assertTrue(self._pathmgr.async_close())
 
     def test_get_local_path(self) -> None:
         self.assertEqual(

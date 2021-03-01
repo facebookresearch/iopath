@@ -26,16 +26,17 @@ class NonBlockingIOManager:
     assigned a single queue and polling thread that is kept
     open until it is cleaned up by `PathManager.async_join()`.
     """
-    # Ensure `NonBlockingIOManager` is a singleton.
-    __instance = None
-    def __new__(cls, *args, **kwargs):
-        if cls.__instance is None:
-            cls.__instance = object.__new__(cls, *args, **kwargs)
-            cls.__instance._path_to_data = {}
-            # Keep track of a thread pool that `NonBlockingIO` instances
-            # add jobs to.
-            cls.__instance._pool = concurrent.futures.ThreadPoolExecutor()
-        return cls.__instance
+    def __init__(
+        self,
+        executor: Optional[concurrent.futures.Executor] = None,
+    ):
+        """
+        Args:
+            executor: User can optionally attach a custom executor
+                to run asynchronous IO jobs.
+        """
+        self._path_to_data = {}
+        self._pool = executor or concurrent.futures.ThreadPoolExecutor()
 
     def get_non_blocking_io(
         self,
