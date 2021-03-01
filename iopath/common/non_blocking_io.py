@@ -200,7 +200,7 @@ class NonBlockingIO(io.IOBase):
             closefd=closefd,
             opener=opener,
         )
-        self._buffer = io.BytesIO()
+        self._buffers = [io.BytesIO()]
         self._buffer_size = buffering if buffering > 0 else self.MAX_BUFFER_BYTES
 
     @property
@@ -216,6 +216,16 @@ class NonBlockingIO(io.IOBase):
     def writable(self) -> bool:
         return True
 
+    def write(self, b: Union[bytes, bytearray]) -> None:
+        """
+        Called on `f.write()`. Gives the manager the write job to call.
+        """
+        buffer = self._buffers[-1]
+        with memoryview(b) as view:
+            buffer.write(view)
+        if buffer.tell() < self._buffer_size: return
+        self.flush()
+
     def close(self) -> None:
         """
         Called on `f.close()` or automatically by the context manager.
@@ -225,15 +235,6 @@ class NonBlockingIO(io.IOBase):
         self.flush()
         self._notify_manager(lambda: self._file.close())
 
-    def write(self, b: Union[bytes, bytearray]) -> None:
-        """
-        Called on `f.write()`. Gives the manager the write job to call.
-        """
-        with memoryview(b) as view:
-            self._buffer.write(view)
-        if self._buffer.tell() < self._buffer_size: return
-        self.flush()
-
     def flush(self) -> None:
         """
         Called on `f.write()` if the buffer is filled (or overfilled). Can
@@ -242,16 +243,16 @@ class NonBlockingIO(io.IOBase):
         `self._buffer_size` will be broken into multiple write jobs where
         each has a write call with `self._buffer_size` size.
         """
-        if self._buffer.tell() == 0:
+        buffer = self._buffers[-1]
+        if buffer.tell() == 0:
             return
         pos = 0
-        total_size = self._buffer.seek(0, io.SEEK_END)
-        self._buffer.seek(0)
+        total_size = buffer.seek(0, io.SEEK_END)
+        view = buffer.getbuffer()
         # Chunk the buffer in case it is larger than the buffer size.
         while pos < total_size:
-            item = self._buffer.read(self._buffer_size)
+            item = view[pos : pos + self._buffer_size]
             self._notify_manager(lambda item=item: self._file.write(item))
             pos += self._buffer_size
-        # Reset the buffer.
-        self._buffer.seek(0)
-        self._buffer.truncate()
+        # Begin a new buffer.
+        self._buffers.append(io.BytesIO())
