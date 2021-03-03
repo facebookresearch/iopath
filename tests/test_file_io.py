@@ -204,7 +204,16 @@ class TestNativeIO(unittest.TestCase):
         finally:
             self.assertTrue(self._pathmgr.async_close())
 
-    def test_opena_args(self) -> None:
+    def test_opena_mode_restriction(self) -> None:
+        _file = os.path.join(self._tmpdir, "async.txt")
+        with self.assertRaises(ValueError):
+            self._pathmgr.opena(_file, "r")
+        with self.assertRaises(ValueError):
+            self._pathmgr.opena(_file, "rb")
+        with self.assertRaises(ValueError):
+            self._pathmgr.opena(_file, "wrb")
+
+    def test_opena_args_passed_correctly(self) -> None:
         _file = os.path.join(self._tmpdir, "async.txt")
         try:
             # Make sure that `opena` args are used correctly by using

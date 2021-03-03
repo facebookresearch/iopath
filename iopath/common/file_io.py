@@ -508,6 +508,15 @@ class NativePathHandler(PathHandler):
             file: a file-like object with asynchronous methods.
         """
         self._check_kwargs(kwargs)
+
+        # Restrict mode until `NonBlockingIO` has async read feature.
+        valid_modes = {'w', 'a', 'b'}
+        if not all(m in valid_modes for m in mode):
+            raise ValueError(
+                "`opena` mode must be write or append for the "
+                "`NativePathHandler`."
+            )
+
         if not self._non_blocking_io_manager:
             self._non_blocking_io_manager = NonBlockingIOManager(
                 buffered=False,
