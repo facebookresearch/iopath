@@ -510,6 +510,7 @@ class NativePathHandler(PathHandler):
         self._check_kwargs(kwargs)
         if not self._non_blocking_io_manager:
             self._non_blocking_io_manager = NonBlockingIOManager(
+                buffered=False,
                 executor=self._non_blocking_io_executor,
             )
         path = os.path.normpath(self._get_path_with_cwd(path))

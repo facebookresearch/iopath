@@ -28,14 +28,18 @@ class NonBlockingIOManager:
     """
     def __init__(
         self,
+        buffered: Optional[bool] = False,
         executor: Optional[concurrent.futures.Executor] = None,
     ):
         """
         Args:
+            buffered (bool): IO instances will be `BufferedNonBlockingIO`
+                or `NonBlockingIO` based on this value.
             executor: User can optionally attach a custom executor
-                to run asynchronous IO jobs.
         """
         self._path_to_data = {}
+        self._buffered = buffered
+        self._IO = BufferedNonBlockingIO if self._buffered else NonBlockingIO
         self._pool = executor or concurrent.futures.ThreadPoolExecutor()
 
     def get_non_blocking_io(
@@ -60,7 +64,7 @@ class NonBlockingIOManager:
             self._path_to_data[path] = PathData(queue, t)
 
         binary = "b" in mode
-        buffer = NonBlockingIO(
+        buffer = self._IO(
             path,
             mode+"b" if not binary else mode,
             notify_manager=lambda io_callable: (
@@ -200,8 +204,6 @@ class NonBlockingIO(io.IOBase):
             closefd=closefd,
             opener=opener,
         )
-        self._buffers = [io.BytesIO()]
-        self._buffer_size = buffering if buffering > 0 else self.MAX_BUFFER_BYTES
 
     @property
     def name(self) -> str:
@@ -215,6 +217,59 @@ class NonBlockingIO(io.IOBase):
 
     def writable(self) -> bool:
         return True
+
+    def write(self, b: Union[bytes, bytearray]) -> None:
+        """
+        Called on `f.write()`. Gives the manager the write job to call.
+        """
+        self._notify_manager(lambda: self._file.write(b))
+
+    def close(self) -> None:
+        """
+        Called on `f.close()` or automatically by the context manager.
+        We add the `close` call to the file's queue to make sure that
+        the file is not closed before all of the jobs are complete.
+        """
+        self._notify_manager(lambda: self._file.close())
+
+
+# NOTE: This class is not being used anywhere. It is here for temporary
+# placement until a new structure is decided on.
+class BufferedNonBlockingIO(NonBlockingIO):
+    MAX_BUFFER_BYTES = 10 * 1024 * 1024     # 10 MiB
+
+    def __init__(
+        self,
+        path: str,
+        mode: str,
+        notify_manager: Callable[[Callable[[], None]], None],
+        buffering: int = -1,
+        encoding: Optional[str] = None,
+        errors: Optional[str] = None,
+        newline: Optional[str] = None,
+        closefd: bool = True,
+        opener: Optional[Callable] = None,
+    ) -> None:
+        """
+        Buffered version of `NonBlockingIO`. All write data is stored in an
+        IO buffer until the buffer is full, or `flush` or `close` is called.
+
+        Args:
+            Same as `NonBlockingIO` args.
+        """
+        super().__init__(
+            path=path,
+            mode=mode,
+            notify_manager=notify_manager,
+            buffering=buffering,
+            encoding=encoding,
+            errors=errors,
+            newline=newline,
+            closefd=closefd,
+            opener=opener,
+        )
+        self._buffers = [io.BytesIO()]
+        self._buffer_size = buffering if buffering > 0 else self.MAX_BUFFER_BYTES
 
     def write(self, b: Union[bytes, bytearray]) -> None:
         """

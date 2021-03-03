@@ -153,44 +153,6 @@ class TestNativeIO(unittest.TestCase):
         self.assertEqual(len(self._pathmgr._async_handlers), 0)
         self.assertEqual(len(_path_to_data), 0)                     # 0 files remaining
 
-    def test_opena_write_buffer(self) -> None:
-        _file = os.path.join(self._tmpdir, "async.txt")
-
-        try:
-            # Test IO doesn't flush until buffer is full.
-            f = self._pathmgr.opena(_file, "w", buffering=10)
-            with patch.object(f.buffer, 'flush', wraps=f.buffer.flush) as mock_flush:
-                with patch.object(f.buffer, '_notify_manager', wraps=f.buffer._notify_manager) as mock_notify_manager:
-                    f.write("."*9)
-                    mock_flush.assert_not_called()      # buffer not filled - don't flush
-                    mock_notify_manager.assert_not_called()
-                    # Should flush when full.
-                    f.write("."*13)
-                    mock_flush.assert_called_once()     # buffer filled - should flush
-                    # `flush` should notify manager 4 times: 3 `file.write` and 1 `buffer.close`
-                    # Single buffer is split into chunks of size 10, 10, and 2.
-                    self.assertEqual(len(f.buffer._buffers), 2)  # 22-byte and 0-byte buffers
-                    self.assertEqual(mock_notify_manager.call_count, 4)
-                    mock_notify_manager.reset_mock()
-                    # `close` should notify manager 2 times: 1 `buffer.close` and 1 `file.close`.
-                    f.close()
-                    self.assertEqual(mock_notify_manager.call_count, 2)
-
-            # Test IO flushes on file close.
-            f = self._pathmgr.opena(_file, "a", buffering=10)
-            with patch.object(f.buffer, 'flush', wraps=f.buffer.flush) as mock_flush:
-                f.write("."*5)
-                mock_flush.assert_not_called()
-                f.close()
-                mock_flush.assert_called()              # flush on exit
-        finally:
-            self.assertTrue(self._pathmgr.async_close())
-
-        self.assertTrue(f.buffer._buffers[0].closed)
-        self.assertTrue(f.buffer._buffers[1].closed)
-        with self._pathmgr.open(_file, "r") as f:
-            self.assertEqual(f.read(), "."*27)
-
     def test_opena_normpath(self) -> None:
         _filename = "async.txt"
         # `_file1` and `_file2` should represent the same path but have different
