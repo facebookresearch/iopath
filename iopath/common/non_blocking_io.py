@@ -9,10 +9,28 @@ from threading import Thread
 from typing import Callable, IO, Optional, Union
 
 
+"""
+This file is used for asynchronous file operations.
+
+When `opena` is called for the first time for a specific
+`PathHandler`, a `NonBlockingIOManager` is instantiated. The
+manager returns a `NonBlockingIO` (or `BufferedNonBlockingIO`)
+instance to the caller, and the manager maintains all of the
+thread management and data management.
+"""
+
 @dataclass
 class PathData:
     """
-    Manage the IO job queue and polling thread for a single path.
+    Manage the IO job queue and polling thread for a single
+    path. This is done to ensure that write calls to the same
+    path are serialized so they are written in the same order
+    as they were called.
+
+    On each `f.write` call where `f` is of type `NonBlockingIO`,
+    we send the job to the manager where it is enqueued to the
+    Queue. The polling Thread picks up on the job, executes it,
+    waits for it to finish, and then continues to poll.
     """
     queue: Queue
     thread: Thread
@@ -30,14 +48,16 @@ class NonBlockingIOManager:
         self,
         buffered: Optional[bool] = False,
         executor: Optional[concurrent.futures.Executor] = None,
-    ):
+    ) -> None:
         """
         Args:
             buffered (bool): IO instances will be `BufferedNonBlockingIO`
-                or `NonBlockingIO` based on this value.
-            executor: User can optionally attach a custom executor
+                or `NonBlockingIO` based on this value. This bool is set
+                manually for each `PathHandler` in `_opena`.
+            executor: User can optionally attach a custom executor to
+                perform async operations through `PathHandler.__init__`.
         """
-        self._path_to_data = {}
+        self._path_to_data = {}         # Map from path to `PathData` object
         self._buffered = buffered
         self._IO = BufferedNonBlockingIO if self._buffered else NonBlockingIO
         self._pool = executor or concurrent.futures.ThreadPoolExecutor()
@@ -54,20 +74,24 @@ class NonBlockingIOManager:
         opener: Optional[Callable] = None,
     ) -> Union[IO[str], IO[bytes]]:
         """
-        Called by `PathHandler._opena` with the path and returns
-        a `NonBlockingIO` instance.
+        Called by `PathHandler._opena` with the path and returns a
+        `NonBlockingIO` instance.
         """
         if path not in self._path_to_data:
+            # Initialize job queue and a polling thread
             queue = Queue()
             t = Thread(target=self._poll_jobs, args=(queue,))
             t.start()
+            # Store the `PathData`
             self._path_to_data[path] = PathData(queue, t)
 
+        # `NonBlockingIO` operates only on binary data. Ensure
+        # arguments are passed correctly if using text data.
         binary = "b" in mode
         buffer = self._IO(
             path,
             mode+"b" if not binary else mode,
-            notify_manager=lambda io_callable: (
+            notify_manager=lambda io_callable: (    # Pass async jobs to manager
                 self._path_to_data[path].queue.put(io_callable)
             ),
             buffering=buffering,
@@ -91,14 +115,15 @@ class NonBlockingIOManager:
     def _poll_jobs(self, queue: Optional[Callable[[], None]]) -> None:
         """
         A single thread runs this loop. It waits for an IO callable to be
-        placed in a specific path's `Queue`. It then waits for the IO job
-        to be completed before looping to ensure write order.
+        placed in a specific path's `Queue` where the queue contains
+        callable functions. It then waits for the IO job to be completed
+        before looping to ensure write order.
         """
         while True:
-            # This item can be any of:
-            #   - file.write(b)
-            #   - file.close()
-            #   - None
+            # `item` is a callable function and can be any of:
+            #   - item = file.write(b)
+            #   - item = file.close()
+            #   - item = None
             item = queue.get()                      # Blocks until item read.
             if item is None:                        # Thread join signal.
                 break
@@ -186,6 +211,17 @@ class NonBlockingIO(io.IOBase):
             notify_manager (Callable): a callback function passed in from the
                 `NonBlockingIOManager` so that all IO jobs can be stored in
                 the manager.
+                Example usage:
+                ```
+                    notify_manager(lambda: file.write(data))
+                    notify_manager(lambda: file.close())
+                ```
+                Here, we tell `NonBlockingIOManager` to add a write callable
+                to the path's Queue, and then to add a close callable to the
+                path's Queue. The path's polling Thread then executes the write
+                callable, waits for it to finish, and then executes the close
+                callable. Using `lambda` allows us to pass callables to the
+                manager.
         """
         super().__init__()
         self._path = path
@@ -228,7 +264,7 @@ class NonBlockingIO(io.IOBase):
         """
         Called on `f.close()` or automatically by the context manager.
         We add the `close` call to the file's queue to make sure that
-        the file is not closed before all of the jobs are complete.
+        the file is not closed before all of the write jobs are complete.
         """
         self._notify_manager(lambda: self._file.close())
 
@@ -285,7 +321,7 @@ class BufferedNonBlockingIO(NonBlockingIO):
         """
         Called on `f.close()` or automatically by the context manager.
         We add the `close` call to the file's queue to make sure that
-        the file is not closed before all of the jobs are complete.
+        the file is not closed before all of the write jobs are complete.
         """
         self.flush()
         # Close the last buffer created by `flush`.

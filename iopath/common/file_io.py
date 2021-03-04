@@ -250,14 +250,45 @@ class PathHandler:
     def _opena(
         self, path: str, mode: str = "r", buffering: int = -1, **kwargs: Any
     ) -> Union[IO[str], IO[bytes]]:
+        """
+        Open a stream to a URI with asynchronous permissions.
+
+        NOTE: Writes to the same path are serialized so they are written in
+        the same order as they were called but writes to distinct paths can
+        happen concurrently.
+
+        Args:
+            Same args as open()
+
+        Returns:
+            file: a file-like object with asynchronous methods.
+        """
         raise NotImplementedError()
 
     def _async_join(
         self, path: Optional[str] = None, **kwargs: Any
     ) -> bool:
+        """
+        Ensures that desired async write threads are properly joined.
+
+        Args:
+            path (str): Pass in a file path to wait until all asynchronous
+                activity for that path is complete. If no path is passed in,
+                then this will wait until all asynchronous jobs are complete.
+
+        Returns:
+            status (bool): True on success
+        """
+
         raise NotImplementedError()
 
     def _async_close(self, **kwargs: Any) -> bool:
+        """
+        Closes the thread pool used for the asynchronous operations.
+
+        Returns:
+            status (bool): True on success
+        """
         raise NotImplementedError()
 
     def _copy(
@@ -483,10 +514,9 @@ class NativePathHandler(PathHandler):
         **kwargs: Any,
     ) -> Union[IO[str], IO[bytes]]:
         """
-        Open a file with asynchronous permissions. Once implemented,
-        `f.write()` calls (and potentially `f.read()` calls) will be dispatched
-        asynchronously in a separate thread such that the main program can
-        continue running.
+        Open a file with asynchronous permissions. `f.write()` calls (and
+        potentially `f.read()` calls in the future) will be dispatched
+        asynchronously such that the main program can continue running.
 
         NOTE: Writes to the same path are serialized so they are written in
         the same order as they were called but writes to distinct paths can
@@ -499,10 +529,10 @@ class NativePathHandler(PathHandler):
                 with path_manager.opena(uri, "w") as f:
                     f.write(results)            # Runs in separate thread
                 # Main process returns immediately and continues to next iteration
+            path_manager.async_close()
 
         Args:
             Same args as `_open()`
-            NOTE: For now, `mode` must be "w" or "wb".
 
         Returns:
             file: a file-like object with asynchronous methods.
@@ -540,19 +570,13 @@ class NativePathHandler(PathHandler):
         """
         Ensures that desired async write threads are properly joined.
 
-        Usage:
-            Wait for asynchronous methods operating on specific file paths to
-            complete.
-                async_join("path/to/file1.txt")
-                async_join("path/to/file2.txt", "path/to/file3.txt")
-            Wait for all asynchronous methods to complete.
-                async_join()
-
         Args:
-            *paths (str): Pass in any number of file paths and `async_join` will wait
-                until all asynchronous activity for those paths is complete. If no
-                paths are passed in, then `async_join` will wait until all asynchronous
-                jobs are complete.
+            path (str): Pass in a file path to wait until all asynchronous
+                activity for that path is complete. If no path is passed in,
+                then this will wait until all asynchronous jobs are complete.
+
+        Returns:
+            status (bool): True on success
         """
         self._check_kwargs(kwargs)
         _path = self._get_path_with_cwd(path) if path else None
@@ -560,7 +584,10 @@ class NativePathHandler(PathHandler):
 
     def _async_close(self, **kwargs: Any) -> bool:
         """
-        This closes the thread pool used for the asynchronous operations.
+        Closes the thread pool used for the asynchronous operations.
+
+        Returns:
+            status (bool): True on success
         """
         self._check_kwargs(kwargs)
         return self._non_blocking_io_manager._close_thread_pool()
@@ -902,10 +929,9 @@ class PathManager:
         self, path: str, mode: str = "r", buffering: int = -1, **kwargs: Any
     ) -> Union[IO[str], IO[bytes]]:
         """
-        Open a stream to a URI with asynchronous permissions. Once implemented,
-        `f.write()` calls (and potentially `f.read()` calls) will be dispatched
-        asynchronously in a separate thread such that the main program can
-        continue running.
+        Open a file with asynchronous permissions. `f.write()` calls (and
+        potentially `f.read()` calls in the future) will be dispatched
+        asynchronously such that the main program can continue running.
 
         NOTE: Writes to the same path are serialized so they are written in
         the same order as they were called but writes to distinct paths can
@@ -918,10 +944,10 @@ class PathManager:
                 with path_manager.opena(uri, "w") as f:
                     f.write(results)            # Runs in separate thread
                 # Main process returns immediately and continues to next iteration
+            path_manager.async_close()
 
         Args:
-            Same args as open()
-            NOTE: For now, `mode` must be "w".
+            Same args as `_open()`
 
         Returns:
             file: a file-like object with asynchronous methods.
@@ -951,6 +977,9 @@ class PathManager:
                 until all asynchronous activity for those paths is complete. If no
                 paths are passed in, then `async_join` will wait until all asynchronous
                 jobs are complete.
+
+        Returns:
+            status (bool): True on success
         """
         success = True
         if not paths:        # Join all.
@@ -966,6 +995,9 @@ class PathManager:
         `async_close()` must be called at the very end of any script that uses the
         asynchronous `opena` feature. This calls `async_join()` first and then closes
         the thread pool used for the asynchronous operations.
+
+        Returns:
+            status (bool): True on success
         """
         success = self.async_join(**kwargs)
         for handler in self._async_handlers:
