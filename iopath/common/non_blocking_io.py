@@ -120,14 +120,15 @@ class NonBlockingIOManager:
         before looping to ensure write order.
         """
         while True:
-            # `item` is a callable function and can be any of:
-            #   - item = file.write(b)
-            #   - item = file.close()
-            #   - item = None
-            item = queue.get()                      # Blocks until item read.
-            if item is None:                        # Thread join signal.
+            # `func` is a callable function (specifically a lambda function)
+            # and can be any of:
+            #   - func = file.write(b)
+            #   - func = file.close()
+            #   - func = None
+            func = queue.get()                      # Blocks until item read.
+            if func is None:                        # Thread join signal.
                 break
-            self._pool.submit(item).result()        # Wait for job to finish.
+            self._pool.submit(func).result()        # Wait for job to finish.
 
     def _join(self, path: Optional[str] = None) -> bool:
         """
@@ -210,7 +211,8 @@ class NonBlockingIO(io.IOBase):
                 async writing feature.
             notify_manager (Callable): a callback function passed in from the
                 `NonBlockingIOManager` so that all IO jobs can be stored in
-                the manager.
+                the manager. It takes in a single argument, namely another
+                callable function.
                 Example usage:
                 ```
                     notify_manager(lambda: file.write(data))
@@ -345,6 +347,7 @@ class BufferedNonBlockingIO(NonBlockingIO):
         # Chunk the buffer in case it is larger than the buffer size.
         while pos < total_size:
             item = view[pos : pos + self._buffer_size]
+            # `item=item` is needed due to Python's late binding closures.
             self._notify_manager(lambda item=item: self._file.write(item))
             pos += self._buffer_size
         # Close buffer immediately after being written to file and create
