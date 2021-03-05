@@ -248,7 +248,12 @@ class PathHandler:
         raise NotImplementedError()
 
     def _opena(
-        self, path: str, mode: str = "r", buffering: int = -1, **kwargs: Any
+        self,
+        path: str,
+        mode: str = "r",
+        buffering: int = -1,
+        callback_after_file_close: Optional[Callable[[None], None]] = None,
+        **kwargs: Any
     ) -> Union[IO[str], IO[bytes]]:
         """
         Open a stream to a URI with asynchronous permissions.
@@ -258,7 +263,11 @@ class PathHandler:
         happen concurrently.
 
         Args:
-            Same args as open()
+            ...
+            callback_after_file_close (Callable): An optional argument that can
+                be passed to perform operations that depend on the asynchronous
+                writes being completed. The file is first written to the local
+                disk and then the callback is executed.
 
         Returns:
             file: a file-like object with asynchronous methods.
@@ -511,6 +520,7 @@ class NativePathHandler(PathHandler):
         newline: Optional[str] = None,
         closefd: bool = True,
         opener: Optional[Callable] = None,
+        callback_after_file_close: Optional[Callable[[None], None]] = None,
         **kwargs: Any,
     ) -> Union[IO[str], IO[bytes]]:
         """
@@ -522,7 +532,7 @@ class NativePathHandler(PathHandler):
         the same order as they were called but writes to distinct paths can
         happen concurrently.
 
-        Usage:
+        Usage (default / without callback function):
             for n in range(50):
                 results = run_a_large_task(n)
                 # `f` is a file-like object with asynchronous methods
@@ -531,8 +541,22 @@ class NativePathHandler(PathHandler):
                 # Main process returns immediately and continues to next iteration
             path_manager.async_close()
 
+        Usage (advanced / with callback function):
+            # To asynchronously write to Manifold:
+            def cb():
+                path_manager.copy_from_local(
+                    "checkpoint.pt", "manifold://path/to/bucket"
+                )
+            f = pm.opena("checkpoint.pt", "wb", callback_after_file_close=cb)
+            torch.save({...}, f)
+            f.close()
+
         Args:
-            Same args as `_open()`
+            ...
+            callback_after_file_close (Callable): An optional argument that can
+                be passed to perform operations that depend on the asynchronous
+                writes being completed. The file is first written to the local
+                disk and then the callback is executed.
 
         Returns:
             file: a file-like object with asynchronous methods.
@@ -562,6 +586,7 @@ class NativePathHandler(PathHandler):
             newline=newline,
             closefd=closefd,
             opener=opener,
+            callback_after_file_close=callback_after_file_close,
         )
 
     def _async_join(
@@ -926,7 +951,12 @@ class PathManager:
     # NOTE: This feature is only implemented for `NativePathHandler` and can
     # currently only be used in write mode.
     def opena(
-        self, path: str, mode: str = "r", buffering: int = -1, **kwargs: Any
+        self,
+        path: str,
+        mode: str = "r",
+        buffering: int = -1,
+        callback_after_file_close: Optional[Callable[[None], None]] = None,
+        **kwargs: Any,
     ) -> Union[IO[str], IO[bytes]]:
         """
         Open a file with asynchronous permissions. `f.write()` calls (and
@@ -937,7 +967,7 @@ class PathManager:
         the same order as they were called but writes to distinct paths can
         happen concurrently.
 
-        Usage:
+        Usage (default / without callback function):
             for n in range(50):
                 results = run_a_large_task(n)
                 # `f` is a file-like object with asynchronous methods
@@ -946,14 +976,32 @@ class PathManager:
                 # Main process returns immediately and continues to next iteration
             path_manager.async_close()
 
+        Usage (advanced / with callback function):
+            # To asynchronously write to Manifold:
+            def cb():
+                path_manager.copy_from_local(
+                    "checkpoint.pt", "manifold://path/to/bucket"
+                )
+            f = pm.opena("checkpoint.pt", "wb", callback_after_file_close=cb)
+            torch.save({...}, f)
+            f.close()
+
         Args:
-            Same args as `_open()`
+            ...
+            callback_after_file_close (Callable): An optional argument that can
+                be passed to perform operations that depend on the asynchronous
+                writes being completed. The file is first written to the local
+                disk and then the callback is executed.
 
         Returns:
             file: a file-like object with asynchronous methods.
         """
         non_blocking_io = self.__get_path_handler(path)._opena(
-            path, mode, buffering=buffering, **kwargs
+            path,
+            mode,
+            buffering=buffering,
+            callback_after_file_close=callback_after_file_close,
+            **kwargs,
         )
         # Keep track of the path handlers where `opena` is used so that all of the
         # threads can be properly joined on `PathManager.join`.

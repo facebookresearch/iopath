@@ -8,7 +8,7 @@ import unittest
 import uuid
 from contextlib import contextmanager
 from typing import Generator, Optional
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 from iopath.common import file_io
 from iopath.common.file_io import (
@@ -229,6 +229,34 @@ class TestNativeIO(unittest.TestCase):
         # if the `opena` args were used correctly.
         with self._pathmgr.open(_file, "r", newline="") as f:
             self.assertEqual(f.read(), "1\r\n2\n3")
+
+    def test_opena_with_callback(self) -> None:
+        _file_tmp = os.path.join(self._tmpdir, "async.txt.tmp")
+        _file = os.path.join(self._tmpdir, "async.txt")
+        _data = "Asynchronously written text"
+
+        def cb():
+            # Insert a test to make sure `_file_tmp` was closed before
+            # the callback is called.
+            with open(_file_tmp, "r") as f:
+                self.assertEqual(f.read(), _data)
+            self._pathmgr.copy(_file_tmp, _file)
+
+        mock_cb = Mock(side_effect=cb)
+
+        try:
+            with self._pathmgr.opena(_file_tmp, "w", callback_after_file_close=mock_cb) as f:
+                f.write(_data)
+        finally:
+            self.assertTrue(self._pathmgr.async_close())
+        # Callback should have been called exactly once.
+        mock_cb.assert_called_once()
+
+        # Data should have been written to both `_file_tmp` and `_file`.
+        with open(_file_tmp, "r") as f:
+            self.assertEqual(f.read(), _data)
+        with open(_file, "r") as f:
+            self.assertEqual(f.read(), _data)
 
     def test_async_custom_executor(self) -> None:
         # At first, neither manager nor executor are set.

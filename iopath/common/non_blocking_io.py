@@ -72,10 +72,18 @@ class NonBlockingIOManager:
         newline: Optional[str] = None,
         closefd: bool = True,
         opener: Optional[Callable] = None,
+        callback_after_file_close: Optional[Callable[[None], None]] = None,
     ) -> Union[IO[str], IO[bytes]]:
         """
         Called by `PathHandler._opena` with the path and returns a
         `NonBlockingIO` instance.
+
+        Args:
+            ...
+            callback_after_file_close (Callable): An optional argument that can
+                be passed to perform operations that depend on the asynchronous
+                writes being completed. The file is first written to the local
+                disk and then the callback is executed.
         """
         if path not in self._path_to_data:
             # Initialize job queue and a polling thread
@@ -100,6 +108,7 @@ class NonBlockingIOManager:
             newline=newline if binary else None,
             closefd=closefd,
             opener=opener,
+            callback_after_file_close=callback_after_file_close,
         )
         if binary:
             return buffer
@@ -193,6 +202,7 @@ class NonBlockingIO(io.IOBase):
         newline: Optional[str] = None,
         closefd: bool = True,
         opener: Optional[Callable] = None,
+        callback_after_file_close: Optional[Callable[[None], None]] = None,
     ) -> None:
         """
         Returned to the user on an `opena` call. Uses a Queue to manage the
@@ -224,11 +234,16 @@ class NonBlockingIO(io.IOBase):
                 callable, waits for it to finish, and then executes the close
                 callable. Using `lambda` allows us to pass callables to the
                 manager.
+            callback_after_file_close (Callable): An optional argument that can
+                be passed to perform operations that depend on the asynchronous
+                writes being completed. The file is first written to the local
+                disk and then the callback is executed.
         """
         super().__init__()
         self._path = path
         self._mode = mode
         self._notify_manager = notify_manager
+        self._callback_after_file_close = callback_after_file_close
 
         # `_file` will be closed by context manager exit or when `.close()`
         # is called explicitly.
@@ -268,7 +283,10 @@ class NonBlockingIO(io.IOBase):
         We add the `close` call to the file's queue to make sure that
         the file is not closed before all of the write jobs are complete.
         """
+        # `ThreadPool` first closes the file and then executes the callback.
         self._notify_manager(lambda: self._file.close())
+        if self._callback_after_file_close:
+            self._notify_manager(self._callback_after_file_close)
 
 
 # NOTE: This class is not being used anywhere. It is here for temporary
@@ -287,6 +305,7 @@ class BufferedNonBlockingIO(NonBlockingIO):
         newline: Optional[str] = None,
         closefd: bool = True,
         opener: Optional[Callable] = None,
+        callback_after_file_close: Optional[Callable[[None], None]] = None,
     ) -> None:
         """
         Buffered version of `NonBlockingIO`. All write data is stored in an
@@ -308,6 +327,7 @@ class BufferedNonBlockingIO(NonBlockingIO):
         )
         self._buffers = [io.BytesIO()]
         self._buffer_size = buffering if buffering > 0 else self.MAX_BUFFER_BYTES
+        self._callback_after_file_close = callback_after_file_close
 
     def write(self, b: Union[bytes, bytearray]) -> None:
         """
@@ -328,7 +348,10 @@ class BufferedNonBlockingIO(NonBlockingIO):
         self.flush()
         # Close the last buffer created by `flush`.
         self._notify_manager(lambda: self._buffers[-1].close())
+        # `ThreadPool` first closes the file and then executes the callback.
         self._notify_manager(lambda: self._file.close())
+        if self._callback_after_file_close:
+            self._notify_manager(self._callback_after_file_close)
 
     def flush(self) -> None:
         """
