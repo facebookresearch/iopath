@@ -7,11 +7,16 @@ from iopath.common import (
     file_lock,
 )
 
+from iopath.tabular import (
+    TabularPathHandler,
+)
+
 __all__ = [
     "LazyPath",
     "PathManager",
     "get_cache_dir",
     "file_lock",
+    "TabularPathHandler",
 ]
 
 # This line will be programatically read/write by setup.py.
