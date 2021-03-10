@@ -27,6 +27,10 @@ setup(
     url="https://github.com/facebookresearch/iopath",
     description="A library for providing I/O abstraction.",
     python_requires=">=3.6",
-    install_requires=["tqdm", "portalocker"],
+    install_requires=[
+        "tqdm",
+        "portalocker",
+        "dataclasses; python_version<'3.7'",
+    ],
     packages=find_packages(exclude=("tests",)),
 )
