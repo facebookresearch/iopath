@@ -12,6 +12,8 @@ from iopath.tabular.tabular_io import (
     TabularUriParser,
 )
 
+from .version import __version__
+
 __all__ = [
     "LazyPath",
     "PathManager",
@@ -19,8 +21,5 @@ __all__ = [
     "file_lock",
     "TabularPathHandler",
     "TabularUriParser",
+    __version__,
 ]
-
-# This line will be programatically read/write by setup.py.
-# Leave them at the bottom of this file and don't touch them.
-__version__ = "0.1.6"
