@@ -7,8 +7,9 @@ from iopath.common import (
     file_lock,
 )
 
-from iopath.tabular import (
+from iopath.tabular.tabular_io import (
     TabularPathHandler,
+    TabularUriParser,
 )
 
 __all__ = [
@@ -17,6 +18,7 @@ __all__ = [
     "get_cache_dir",
     "file_lock",
     "TabularPathHandler",
+    "TabularUriParser",
 ]
 
 # This line will be programatically read/write by setup.py.
