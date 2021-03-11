@@ -15,6 +15,7 @@ requirements:
     - python
     - tqdm
     - portalocker
+    {{ environ.get('DATACLASSES_CONSTRAINT') }}
 
 build:
   string: py{{py}}

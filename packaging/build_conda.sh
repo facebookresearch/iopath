@@ -9,4 +9,11 @@ build_version=$version.post$(date +%Y%m%d)
 
 export BUILD_VERSION=$build_version
 
+if [[ "3.6" == "$PYTHON_VERSION" ]]
+then
+    export DATACLASSES_CONSTRAINT="- dataclasses"
+else
+    export DATACLASSES_CONSTRAINT=""
+fi
+
 conda build -c defaults -c conda-forge --no-anaconda-upload --python "$PYTHON_VERSION" --output-folder packaging/out packaging/iopath
