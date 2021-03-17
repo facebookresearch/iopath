@@ -150,14 +150,13 @@ class PathHandler:
 
         Args:
             async_executor (optional `Executor`): Used for async file operations.
-                NOTE: Async operations are only implemented for
-                `NativePathHandler`.
                 Usage:
                 ```
                     path_handler = NativePathHandler(async_executor=exe)
                     path_manager.register_handler(path_handler)
                 ```
         """
+        self._non_blocking_io_manager = None
         self._non_blocking_io_executor = async_executor
 
     def _check_kwargs(self, kwargs: Dict[str, Any]) -> None:
@@ -251,8 +250,8 @@ class PathHandler:
         self,
         path: str,
         mode: str = "r",
-        buffering: int = -1,
         callback_after_file_close: Optional[Callable[[None], None]] = None,
+        buffering: int = -1,
         **kwargs: Any
     ) -> Union[IO[str], IO[bytes]]:
         """
@@ -262,17 +261,69 @@ class PathHandler:
         the same order as they were called but writes to distinct paths can
         happen concurrently.
 
+        Usage (default / without callback function):
+            for n in range(50):
+                results = run_a_large_task(n)
+                with path_manager.opena(uri, "w") as f:
+                    f.write(results)            # Runs in separate thread
+                # Main process returns immediately and continues to next iteration
+            path_manager.async_close()
+
+        Usage (advanced / with callback function):
+            # To write local and then copy to Manifold:
+            def cb():
+                path_manager.copy_from_local(
+                    "checkpoint.pt", "manifold://path/to/bucket"
+                )
+            f = pm.opena("checkpoint.pt", "wb", callback_after_file_close=cb)
+            torch.save({...}, f)
+            f.close()
+
         Args:
-            ...
+            ...same args as `_open`...
             callback_after_file_close (Callable): An optional argument that can
                 be passed to perform operations that depend on the asynchronous
                 writes being completed. The file is first written to the local
                 disk and then the callback is executed.
+            buffering (int): An optional argument to set the buffer size for
+                buffered asynchronous writing.
 
         Returns:
             file: a file-like object with asynchronous methods.
         """
-        raise NotImplementedError()
+        # Restrict mode until `NonBlockingIO` has async read feature.
+        valid_modes = {'w', 'a', 'b'}
+        if not all(m in valid_modes for m in mode):
+            raise ValueError("`opena` mode must be write or append")
+
+        # TODO: Each `PathHandler` should set its own `self._buffered`
+        # parameter and pass that in here. Until then, we assume no
+        # buffering for any storage backend.
+        if not self._non_blocking_io_manager:
+            self._non_blocking_io_manager = NonBlockingIOManager(
+                buffered=False,
+                executor=self._non_blocking_io_executor,
+            )
+
+        try:
+            return self._non_blocking_io_manager.get_non_blocking_io(
+                path=self._get_path_with_cwd(path),
+                io_obj=self._open(path, mode, **kwargs),
+                callback_after_file_close=callback_after_file_close,
+                buffering=buffering,
+            )
+        except ValueError:
+            # When `_strict_kwargs_check = True`, then `open_callable`
+            # will throw a `ValueError`. This generic `_opena` function
+            # does not check the kwargs since it may include any `_open`
+            # args like `encoding`, `ttl`, `has_user_data`, etc.
+            logger = logging.getLogger(__name__)
+            logger.exception(
+                "An exception occurred in `NonBlockingIOManager`. This "
+                "is most likely due to invalid `opena` args. Make sure "
+                "they match the `open` args for the `PathHandler`."
+            )
+            self._async_close()
 
     def _async_join(
         self, path: Optional[str] = None, **kwargs: Any
@@ -288,8 +339,16 @@ class PathHandler:
         Returns:
             status (bool): True on success
         """
-
-        raise NotImplementedError()
+        if not self._non_blocking_io_manager:
+            logger = logging.getLogger(__name__)
+            logger.warning(
+                "This is an async feature. No threads to join because "
+                "`opena` was not used."
+            )
+        self._check_kwargs(kwargs)
+        return self._non_blocking_io_manager._join(
+            self._get_path_with_cwd(path) if path else None
+        )
 
     def _async_close(self, **kwargs: Any) -> bool:
         """
@@ -298,7 +357,14 @@ class PathHandler:
         Returns:
             status (bool): True on success
         """
-        raise NotImplementedError()
+        if not self._non_blocking_io_manager:
+            logger = logging.getLogger(__name__)
+            logger.warning(
+                "This is an async feature. No threadpool to close because "
+                "`opena` was not used."
+            )
+        self._check_kwargs(kwargs)
+        return self._non_blocking_io_manager._close_thread_pool()
 
     def _copy(
         self, src_path: str, dst_path: str, overwrite: bool = False, **kwargs: Any
@@ -416,12 +482,25 @@ class PathHandler:
 
         Args:
             path (str) or None: A URI supported by this PathHandler. Must be a valid
-                absolute Unix path or None to set the cwd to None.
+                absolute path or None to set the cwd to None.
 
         Returns:
             bool: true if cwd was set without errors
         """
         raise NotImplementedError()
+
+    def _get_path_with_cwd(self, path: str) -> str:
+        """
+        Default implementation. PathHandler classes that provide a `_set_cwd`
+        feature should also override this `_get_path_with_cwd` method.
+
+        Args:
+            path (str): A URI supported by this PathHandler.
+
+        Returns:
+            path (str): Full path with the cwd attached.
+        """
+        return path
 
 
 class NativePathHandler(PathHandler):
@@ -431,7 +510,6 @@ class NativePathHandler(PathHandler):
     """
 
     _cwd = None
-    _non_blocking_io_manager = None
 
     def _get_local_path(self, path: str, **kwargs: Any) -> str:
         self._check_kwargs(kwargs)
@@ -509,113 +587,6 @@ class NativePathHandler(PathHandler):
             closefd=closefd,
             opener=opener,
         )
-
-    def _opena(
-        self,
-        path: str,
-        mode: str = "r",
-        buffering: int = -1,
-        encoding: Optional[str] = None,
-        errors: Optional[str] = None,
-        newline: Optional[str] = None,
-        closefd: bool = True,
-        opener: Optional[Callable] = None,
-        callback_after_file_close: Optional[Callable[[None], None]] = None,
-        **kwargs: Any,
-    ) -> Union[IO[str], IO[bytes]]:
-        """
-        Open a file with asynchronous permissions. `f.write()` calls (and
-        potentially `f.read()` calls in the future) will be dispatched
-        asynchronously such that the main program can continue running.
-
-        NOTE: Writes to the same path are serialized so they are written in
-        the same order as they were called but writes to distinct paths can
-        happen concurrently.
-
-        Usage (default / without callback function):
-            for n in range(50):
-                results = run_a_large_task(n)
-                # `f` is a file-like object with asynchronous methods
-                with path_manager.opena(uri, "w") as f:
-                    f.write(results)            # Runs in separate thread
-                # Main process returns immediately and continues to next iteration
-            path_manager.async_close()
-
-        Usage (advanced / with callback function):
-            # To asynchronously write to Manifold:
-            def cb():
-                path_manager.copy_from_local(
-                    "checkpoint.pt", "manifold://path/to/bucket"
-                )
-            f = pm.opena("checkpoint.pt", "wb", callback_after_file_close=cb)
-            torch.save({...}, f)
-            f.close()
-
-        Args:
-            ...
-            callback_after_file_close (Callable): An optional argument that can
-                be passed to perform operations that depend on the asynchronous
-                writes being completed. The file is first written to the local
-                disk and then the callback is executed.
-
-        Returns:
-            file: a file-like object with asynchronous methods.
-        """
-        self._check_kwargs(kwargs)
-
-        # Restrict mode until `NonBlockingIO` has async read feature.
-        valid_modes = {'w', 'a', 'b'}
-        if not all(m in valid_modes for m in mode):
-            raise ValueError(
-                "`opena` mode must be write or append for the "
-                "`NativePathHandler`."
-            )
-
-        if not self._non_blocking_io_manager:
-            self._non_blocking_io_manager = NonBlockingIOManager(
-                buffered=False,
-                executor=self._non_blocking_io_executor,
-            )
-        path = os.path.normpath(self._get_path_with_cwd(path))
-        return self._non_blocking_io_manager.get_non_blocking_io(
-            path,
-            mode,
-            buffering=buffering,
-            encoding=encoding,
-            errors=errors,
-            newline=newline,
-            closefd=closefd,
-            opener=opener,
-            callback_after_file_close=callback_after_file_close,
-        )
-
-    def _async_join(
-        self, path: Optional[str] = None, **kwargs: Any
-    ) -> bool:
-        """
-        Ensures that desired async write threads are properly joined.
-
-        Args:
-            path (str): Pass in a file path to wait until all asynchronous
-                activity for that path is complete. If no path is passed in,
-                then this will wait until all asynchronous jobs are complete.
-
-        Returns:
-            status (bool): True on success
-        """
-        self._check_kwargs(kwargs)
-        _path = self._get_path_with_cwd(path) if path else None
-        return self._non_blocking_io_manager._join(_path)
-
-    def _async_close(self, **kwargs: Any) -> bool:
-        """
-        Closes the thread pool used for the asynchronous operations.
-
-        Returns:
-            status (bool): True on success
-        """
-        self._check_kwargs(kwargs)
-        return self._non_blocking_io_manager._close_thread_pool()
 
     def _copy(
         self, src_path: str, dst_path: str, overwrite: bool = False, **kwargs: Any
@@ -750,7 +721,9 @@ class NativePathHandler(PathHandler):
         return True
 
     def _get_path_with_cwd(self, path: str) -> str:
-        return path if not self._cwd else os.path.join(self._cwd, path)
+        return os.path.normpath(
+            path if not self._cwd else os.path.join(self._cwd, path)
+        )
 
 
 class HTTPURLHandler(PathHandler):

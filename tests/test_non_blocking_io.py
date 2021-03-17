@@ -10,7 +10,7 @@ from unittest.mock import Mock, patch
 
 from iopath.common.file_io import NativePathHandler, PathManager
 from iopath.common.non_blocking_io import (
-    BufferedNonBlockingIO, NonBlockingIO, NonBlockingIOManager
+    NonBlockingBufferedIO, NonBlockingIO, NonBlockingIOManager
 )
 
 
@@ -267,7 +267,7 @@ class TestNonBlockingIO(unittest.TestCase):
 
     def test_select_io(self) -> None:
         self.assertEqual(self._io_manager._IO, NonBlockingIO)
-        self.assertEqual(self._buffered_io_manager._IO, BufferedNonBlockingIO)
+        self.assertEqual(self._buffered_io_manager._IO, NonBlockingBufferedIO)
 
     def test_io_manager(self) -> None:
         _file = os.path.join(self._tmpdir, "non_buffered.txt")
@@ -275,10 +275,10 @@ class TestNonBlockingIO(unittest.TestCase):
         try:
             # Test IO notifies manager after every write call.
             f = self._io_manager.get_non_blocking_io(
-                path=_file, mode="w"
+                path=_file, io_obj=open(_file, "w")
             )
             with patch.object(
-                f.buffer, '_notify_manager', wraps=f.buffer._notify_manager
+                f, '_notify_manager', wraps=f._notify_manager
             ) as mock_notify_manager:
                 f.write("."*1)
                 f.write("."*2)
@@ -302,21 +302,21 @@ class TestNonBlockingIO(unittest.TestCase):
         try:
             # Test IO doesn't flush until buffer is full.
             f = self._buffered_io_manager.get_non_blocking_io(
-                path=_file, mode="w", buffering=10
+                path=_file, io_obj=open(_file, "wb"), buffering=10
             )
-            with patch.object(f.buffer, 'flush', wraps=f.buffer.flush) as mock_flush:
+            with patch.object(f, 'flush', wraps=f.flush) as mock_flush:
                 with patch.object(
-                    f.buffer, '_notify_manager', wraps=f.buffer._notify_manager
+                    f, '_notify_manager', wraps=f._notify_manager
                 ) as mock_notify_manager:
-                    f.write("."*9)
+                    f.write(b"."*9)
                     mock_flush.assert_not_called()      # buffer not filled - don't flush
                     mock_notify_manager.assert_not_called()
                     # Should flush when full.
-                    f.write("."*13)
+                    f.write(b"."*13)
                     mock_flush.assert_called_once()     # buffer filled - should flush
                     # `flush` should notify manager 4 times: 3 `file.write` and 1 `buffer.close`.
                     # Buffer is split into 3 chunks of size 10, 10, and 2.
-                    self.assertEqual(len(f.buffer._buffers), 2)  # 22-byte and 0-byte buffers
+                    self.assertEqual(len(f._buffers), 2)  # 22-byte and 0-byte buffers
                     self.assertEqual(mock_notify_manager.call_count, 4)
                     mock_notify_manager.reset_mock()
                     # `close` should notify manager 2 times: 1 `buffer.close` and 1 `file.close`.
@@ -325,10 +325,10 @@ class TestNonBlockingIO(unittest.TestCase):
 
             # Test IO flushes on file close.
             f = self._buffered_io_manager.get_non_blocking_io(
-                path=_file, mode="a", buffering=10
+                path=_file, io_obj=open(_file, "ab"), buffering=10
             )
-            with patch.object(f.buffer, 'flush', wraps=f.buffer.flush) as mock_flush:
-                f.write("."*5)
+            with patch.object(f, 'flush', wraps=f.flush) as mock_flush:
+                f.write(b"."*5)
                 mock_flush.assert_not_called()
                 f.close()
                 mock_flush.assert_called()              # flush on exit
@@ -336,5 +336,5 @@ class TestNonBlockingIO(unittest.TestCase):
             self.assertTrue(self._buffered_io_manager._join())
             self.assertTrue(self._buffered_io_manager._close_thread_pool())
 
-        with open(_file, "r") as f:
-            self.assertEqual(f.read(), "."*27)
+        with open(_file, "rb") as f:
+            self.assertEqual(f.read(), b"."*27)

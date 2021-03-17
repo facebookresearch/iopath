@@ -336,7 +336,7 @@ class TestHTTPIO(unittest.TestCase):
             self._pathmgr.mkdirs(self._remote_uri, foo="foo")  # type: ignore
         with self.assertRaises(ValueError):
             self._pathmgr.open(self._remote_uri, foo="foo")  # type: ignore
-        with self.assertRaises(NotImplementedError):
+        with self.assertRaises(ValueError):
             self._pathmgr.opena(self._remote_uri, foo="foo")  # type: ignore
         with self.assertRaises(NotImplementedError):
             self._pathmgr.rm(self._remote_uri, foo="foo")  # type: ignore
