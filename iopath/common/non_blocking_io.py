@@ -224,13 +224,13 @@ class NonBlockingIO(io.IOBase):
         self._io = io_obj
         self._callback_after_file_close = callback_after_file_close
 
-    def seekable(self) -> bool:
-        return False
-
     def readable(self) -> bool:
         return False
 
     def writable(self) -> bool:
+        return True
+
+    def seekable(self) -> bool:
         return True
 
     def write(self, b: Union[bytes, bytearray]) -> None:
@@ -238,6 +238,24 @@ class NonBlockingIO(io.IOBase):
         Called on `f.write()`. Gives the manager the write job to call.
         """
         self._notify_manager(lambda: self._io.write(b))
+
+    def seek(self, offset: int, whence: int = 0) -> int:
+        """
+        Called on `f.seek()`.
+        """
+        self._notify_manager(lambda: self._io.seek(offset, whence))
+
+    def tell(self) -> int:
+        """
+        Called on `f.tell()`.
+        """
+        raise ValueError("ioPath async writes does not support `tell` calls.")
+
+    def truncate(self, size: int = None) -> int:
+        """
+        Called on `f.truncate()`.
+        """
+        self._notify_manager(lambda: self._io.truncate(size))
 
     def close(self) -> None:
         """
@@ -280,14 +298,14 @@ class NonBlockingBufferedIO(io.IOBase):
         self._buffers = [io.BytesIO()]
         self._buffer_size = buffering if buffering > 0 else self.MAX_BUFFER_BYTES
 
-    def seekable(self) -> bool:
-        return False
-
     def readable(self) -> bool:
         return False
 
     def writable(self) -> bool:
         return True
+
+    def seekable(self) -> bool:
+        return False
 
     def write(self, b: Union[bytes, bytearray]) -> None:
         """

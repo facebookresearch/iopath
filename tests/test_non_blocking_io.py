@@ -1,6 +1,7 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
 
 import concurrent.futures
+import io
 import os
 import shutil
 import tempfile
@@ -80,7 +81,7 @@ class TestNativeIOAsync(unittest.TestCase):
         # Test that both `NonBlockingIO` objects `f` and `g` are finally closed.
         self.assertEqual(len(manager._path_to_data), 0)
 
-    def test_opena_join_behavior(self) -> None:
+    def test_async_join_behavior(self) -> None:
         _tmpfile = os.path.join(self._tmpdir, "async.txt")
         _tmpfile_contents = "Async Text"
         try:
@@ -142,7 +143,7 @@ class TestNativeIOAsync(unittest.TestCase):
         finally:
             self.assertTrue(self._pathmgr.async_close())
 
-    def test_opena_consecutive_join_calls(self) -> None:
+    def test_async_consecutive_join_calls(self) -> None:
         _file = os.path.join(self._tmpdir, "async.txt")
         try:
             self.assertTrue(self._pathmgr.async_join())
@@ -248,6 +249,54 @@ class TestNativeIOAsync(unittest.TestCase):
             )
         finally:
             self.assertTrue(self._pathmgr.async_close())
+
+    def test_non_blocking_io_seekable(self) -> None:
+        _file = os.path.join(self._tmpdir, "async.txt")
+        # '^' marks the current position in stream
+
+        # Test seek.
+        try:
+            with self._pathmgr.opena(_file, "wb") as f:
+                f.write(b"012345")      # file = 012345^
+                f.seek(1)               # file = 0^12345
+                f.write(b"##")          # file = 0##^345
+        finally:
+            self.assertTrue(self._pathmgr.async_join())
+            with self._pathmgr.open(_file, "rb") as f:
+                self.assertEqual(f.read(), b"0##345")
+
+        # Test truncate.
+        try:
+            with self._pathmgr.opena(_file, "wb") as f:
+                f.write(b"012345")      # file = 012345^
+                f.seek(2)               # file = 01^2345
+                f.truncate()            # file = 01^
+        finally:
+            self.assertTrue(self._pathmgr.async_join())
+            with self._pathmgr.open(_file, "rb") as f:
+                self.assertEqual(f.read(), b"01")
+
+        # Big test for seek and truncate.
+        try:
+            with self._pathmgr.opena(_file, "wb") as f:
+                f.write(b"0123456789")  # file = 0123456789^
+                f.seek(2)               # file = 01^23456789
+                f.write(b"##")          # file = 01##^456789
+                f.seek(3, io.SEEK_CUR)  # file = 01##456^789
+                f.truncate()            # file = 01##456^
+                f.write(b"$")           # file = 01##456$^
+        finally:
+            self.assertTrue(self._pathmgr.async_join())
+            with self._pathmgr.open(_file, "rb") as f:
+                self.assertEqual(f.read(), b"01##456$")
+
+        # Test NOT tellable.
+        try:
+            with self._pathmgr.opena(_file, "wb") as f:
+                with self.assertRaises(ValueError):
+                    f.tell()
+        finally:
+            self._pathmgr.async_close()
 
 
 class TestNonBlockingIO(unittest.TestCase):
