@@ -1,6 +1,5 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
 
-import concurrent.futures
 import os
 import shutil
 import tempfile
@@ -8,17 +7,18 @@ import unittest
 import uuid
 from contextlib import contextmanager
 from typing import Generator, Optional
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, patch
 
 from iopath.common import file_io
 from iopath.common.file_io import (
     HTTPURLHandler,
     LazyPath,
-    NativePathHandler,
+    OneDrivePathHandler,
     PathManager,
+    PathManagerFactory,
     get_cache_dir,
+    g_pathmgr,
 )
-from iopath.common.file_io import PathManagerFactory, g_pathmgr
 
 
 class TestNativeIO(unittest.TestCase):
@@ -79,214 +79,6 @@ class TestNativeIO(unittest.TestCase):
             opener=None,
         )
         f.close()
-
-    def test_opena(self) -> None:
-        _tmpfile = os.path.join(self._tmpdir, "async.txt")
-        try:
-            # Write the files.
-            with self._pathmgr.opena(_tmpfile+"f", "w") as f:
-                f.write("f1 ")
-                with self._pathmgr.opena(_tmpfile+"g", "w") as g:
-                    f.write("f2 ")
-                    g.write("g1 ")
-                    f.write("f3 ")
-                f.write("f4 ")
-            with self._pathmgr.opena(_tmpfile+"f", "a") as f:
-                f.write("f5 ")
-            F_STR = "f1 f2 f3 f4 f5 "
-            G_STR = "g1 "
-
-            # Test that `PathManager._async_handlers` keeps track of all
-            # `PathHandler`-s where `opena` is used.
-            self.assertCountEqual(
-                [type(handler) for handler in self._pathmgr._async_handlers],
-                [type(self._pathmgr._native_path_handler)],
-            )
-            # Test that 2 paths were properly logged in `NonBlockingIOManager`.
-            manager = (
-                self._pathmgr._native_path_handler._non_blocking_io_manager
-            )
-            self.assertEqual(len(manager._path_to_data), 2)
-        finally:
-            # Join the threads to wait for files to be written.
-            self.assertTrue(self._pathmgr.async_close())
-
-        # Check that both files were asynchronously written and written in order.
-        with self._pathmgr.open(_tmpfile+"f", "r") as f:
-            self.assertEqual(f.read(), F_STR)
-        with self._pathmgr.open(_tmpfile+"g", "r") as g:
-            self.assertEqual(g.read(), G_STR)
-        # Test that both `NonBlockingIO` objects `f` and `g` are finally closed.
-        self.assertEqual(len(manager._path_to_data), 0)
-
-    def test_opena_join_behavior(self) -> None:
-        _tmpfile = os.path.join(self._tmpdir, "async.txt")
-        _tmpfile_contents = "Async Text"
-        try:
-            for _ in range(1):          # Opens 1 thread
-                with self._pathmgr.opena(_tmpfile+"1", "w") as f:
-                    f.write(f"{_tmpfile_contents}-1")
-            for _ in range(2):          # Opens 2 threads
-                with self._pathmgr.opena(_tmpfile+"2", "w") as f:
-                    f.write(f"{_tmpfile_contents}-2")
-            for _ in range(3):          # Opens 3 threads
-                with self._pathmgr.opena(_tmpfile+"3", "w") as f:
-                    f.write(f"{_tmpfile_contents}-3")
-            _path_to_data = (
-                self._pathmgr._native_path_handler._non_blocking_io_manager._path_to_data
-            )
-            # Join the threads for the 1st and 3rd file and ensure threadpool completed.
-            _path_to_data_copy = dict(_path_to_data)
-            self.assertTrue(
-                self._pathmgr.async_join(_tmpfile+"1", _tmpfile+"3")      # Removes paths from `_path_to_io`.
-            )
-            self.assertFalse(_path_to_data_copy[_tmpfile+"1"].thread.is_alive())
-            self.assertFalse(_path_to_data_copy[_tmpfile+"3"].thread.is_alive())
-            self.assertEqual(len(_path_to_data), 1)            # 1 file remaining
-        finally:
-            # Join all the remaining threads
-            _path_to_data_copy = dict(_path_to_data)
-            self.assertTrue(self._pathmgr.async_close())
-
-        # Ensure data cleaned up.
-        self.assertFalse(_path_to_data_copy[_tmpfile+"2"].thread.is_alive())
-        self.assertEqual(len(self._pathmgr._async_handlers), 0)
-        self.assertEqual(len(_path_to_data), 0)                     # 0 files remaining
-
-    def test_opena_normpath(self) -> None:
-        _filename = "async.txt"
-        # `_file1` and `_file2` should represent the same path but have different
-        # string representations.
-        _file1 = os.path.join(self._tmpdir, _filename)
-        _file2 = os.path.join(self._tmpdir, ".", _filename)
-        self.assertNotEqual(_file1, _file2)
-        try:
-            _file1_text = "File1 text"
-            _file2_text = "File2 text"
-            with self._pathmgr.opena(_file1, "w") as f:
-                f.write(_file1_text)
-            with self._pathmgr.opena(_file2, "a") as f:
-                f.write(_file2_text)
-            _path_to_data = (
-                self._pathmgr._native_path_handler._non_blocking_io_manager._path_to_data
-            )
-            # Check that `file2` is marked as the same file as `file1`.
-            self.assertEqual(len(_path_to_data), 1)
-            self.assertTrue(self._pathmgr.async_join())
-            # Check that both file paths give the same file contents.
-            with self._pathmgr.open(_file1, "r") as f:
-                self.assertEqual(f.read(), _file1_text + _file2_text)
-            with self._pathmgr.open(_file2, "r") as f:
-                self.assertEqual(f.read(), _file1_text + _file2_text)
-        finally:
-            self.assertTrue(self._pathmgr.async_close())
-
-    def test_opena_consecutive_join_calls(self) -> None:
-        _file = os.path.join(self._tmpdir, "async.txt")
-        try:
-            self.assertTrue(self._pathmgr.async_join())
-            try:
-                with self._pathmgr.opena(_file, "w") as f:
-                    f.write("1")
-            finally:
-                self.assertTrue(self._pathmgr.async_join())
-            with self._pathmgr.open(_file, "r") as f:
-                self.assertEqual(f.read(), "1")
-
-            try:
-                f = self._pathmgr.opena(_file, "a")
-                f.write("2")
-                f.close()
-            finally:
-                self.assertTrue(self._pathmgr.async_join())
-            with self._pathmgr.open(_file, "r") as f:
-                self.assertEqual(f.read(), "12")
-        finally:
-            self.assertTrue(self._pathmgr.async_close())
-
-    def test_opena_mode_restriction(self) -> None:
-        _file = os.path.join(self._tmpdir, "async.txt")
-        with self.assertRaises(ValueError):
-            self._pathmgr.opena(_file, "r")
-        with self.assertRaises(ValueError):
-            self._pathmgr.opena(_file, "rb")
-        with self.assertRaises(ValueError):
-            self._pathmgr.opena(_file, "wrb")
-
-    def test_opena_args_passed_correctly(self) -> None:
-        _file = os.path.join(self._tmpdir, "async.txt")
-        try:
-            # Make sure that `opena` args are used correctly by using
-            # different newline args.
-            with self._pathmgr.opena(_file, "w", newline="\r\n") as f:
-                f.write("1\n")
-            with self._pathmgr.opena(_file, "a", newline="\n") as f:
-                f.write("2\n3")
-        finally:
-            self.assertTrue(self._pathmgr.async_close())
-
-        # Read the raw file data without converting newline endings to see
-        # if the `opena` args were used correctly.
-        with self._pathmgr.open(_file, "r", newline="") as f:
-            self.assertEqual(f.read(), "1\r\n2\n3")
-
-    def test_opena_with_callback(self) -> None:
-        _file_tmp = os.path.join(self._tmpdir, "async.txt.tmp")
-        _file = os.path.join(self._tmpdir, "async.txt")
-        _data = "Asynchronously written text"
-
-        def cb():
-            # Insert a test to make sure `_file_tmp` was closed before
-            # the callback is called.
-            with open(_file_tmp, "r") as f:
-                self.assertEqual(f.read(), _data)
-            self._pathmgr.copy(_file_tmp, _file)
-
-        mock_cb = Mock(side_effect=cb)
-
-        try:
-            with self._pathmgr.opena(_file_tmp, "w", callback_after_file_close=mock_cb) as f:
-                f.write(_data)
-        finally:
-            self.assertTrue(self._pathmgr.async_close())
-        # Callback should have been called exactly once.
-        mock_cb.assert_called_once()
-
-        # Data should have been written to both `_file_tmp` and `_file`.
-        with open(_file_tmp, "r") as f:
-            self.assertEqual(f.read(), _data)
-        with open(_file, "r") as f:
-            self.assertEqual(f.read(), _data)
-
-    def test_async_custom_executor(self) -> None:
-        # At first, neither manager nor executor are set.
-        self.assertIsNone(
-            self._pathmgr._native_path_handler._non_blocking_io_manager
-        )
-        self.assertIsNone(
-            self._pathmgr._native_path_handler._non_blocking_io_executor
-        )
-        # Then, override the `NativePathHandler` and set a custom executor.
-        executor = concurrent.futures.ThreadPoolExecutor(
-            max_workers=128, thread_name_prefix="my prefix"
-        )
-        ph = NativePathHandler(async_executor=executor)
-        self._pathmgr.register_handler(ph, allow_override=True)
-        self.assertEqual(ph, self._pathmgr._native_path_handler)
-
-        # Opening a file with `opena` initializes the manager with the
-        # executor.
-        _file = os.path.join(self._tmpdir, "async.txt")
-        try:
-            with self._pathmgr.opena(_file, "w") as f:
-                f.write("Text")
-            # Make sure the manager's executor is the same as the user's.
-            self.assertEqual(
-                executor,
-                self._pathmgr._native_path_handler._non_blocking_io_manager._pool,
-            )
-        finally:
-            self.assertTrue(self._pathmgr.async_close())
 
     def test_get_local_path(self) -> None:
         self.assertEqual(
@@ -608,8 +400,6 @@ class TestOneDrive(unittest.TestCase):
     _url = "https://1drv.ms/u/s!Aus8VCZ_C_33gQbJsUPTIj3rQu99"
 
     def test_one_drive_download(self) -> None:
-        from iopath.common.file_io import OneDrivePathHandler
-
         _direct_url = OneDrivePathHandler().create_one_drive_direct_download(self._url)
         _gt_url = (
             "https://api.onedrive.com/v1.0/shares/u!aHR0cHM6Ly8xZHJ2Lm1zL3UvcyFBd"
