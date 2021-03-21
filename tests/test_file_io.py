@@ -87,6 +87,13 @@ class TestNativeIO(unittest.TestCase):
             self._tmpfile,
         )
 
+    def test_get_local_path_forced(self) -> None:
+        self.assertEqual(
+            # pyre-ignore
+            self._pathmgr.get_local_path(self._tmpfile, force=True),
+            self._tmpfile,
+        )
+
     def test_exists(self) -> None:
         # pyre-ignore
         self.assertTrue(self._pathmgr.exists(self._tmpfile))
@@ -288,6 +295,10 @@ class TestHTTPIO(unittest.TestCase):
     def test_get_local_path(self) -> None:
         with self._patch_download():
             local_path = self._pathmgr.get_local_path(self._remote_uri)
+            self.assertTrue(os.path.exists(local_path))
+            self.assertTrue(os.path.isfile(local_path))
+            # Now get a copy with force set to True.
+            local_path = self._pathmgr.get_local_path(self._remote_uri, force=True)
             self.assertTrue(os.path.exists(local_path))
             self.assertTrue(os.path.isfile(local_path))
 

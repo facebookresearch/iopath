@@ -183,7 +183,7 @@ class PathHandler:
         """
         raise NotImplementedError()
 
-    def _get_local_path(self, path: str, **kwargs: Any) -> str:
+    def _get_local_path(self, path: str, force: bool = False, **kwargs: Any) -> str:
         """
         Get a filepath which is compatible with native Python I/O such as `open`
         and `os.path`.
@@ -195,6 +195,7 @@ class PathHandler:
 
         Args:
             path (str): A URI supported by this PathHandler
+            force(bool): Forces a download from backend if set to True.
 
         Returns:
             local_path (str): a file path which exists on the local file system
@@ -511,7 +512,7 @@ class NativePathHandler(PathHandler):
 
     _cwd = None
 
-    def _get_local_path(self, path: str, **kwargs: Any) -> str:
+    def _get_local_path(self, path: str, force: bool = False, **kwargs: Any) -> str:
         self._check_kwargs(kwargs)
         return os.fspath(path)
 
@@ -737,13 +738,13 @@ class HTTPURLHandler(PathHandler):
     def _get_supported_prefixes(self) -> List[str]:
         return ["http://", "https://", "ftp://"]
 
-    def _get_local_path(self, path: str, **kwargs: Any) -> str:
+    def _get_local_path(self, path: str, force: bool = False, **kwargs: Any) -> str:
         """
         This implementation downloads the remote resource and caches it locally.
         The resource will only be downloaded if not previously requested.
         """
         self._check_kwargs(kwargs)
-        if path not in self.cache_map or not os.path.exists(self.cache_map[path]):
+        if force or path not in self.cache_map or not os.path.exists(self.cache_map[path]):
             logger = logging.getLogger(__name__)
             parsed_url = urlparse(path)
             dirname = os.path.join(
@@ -782,7 +783,7 @@ class HTTPURLHandler(PathHandler):
         assert (
             buffering == -1
         ), f"{self.__class__.__name__} does not support the `buffering` argument"
-        local_path = self._get_local_path(path)
+        local_path = self._get_local_path(path,force=False)
         return open(local_path, mode)
 
 
@@ -815,7 +816,7 @@ class OneDrivePathHandler(HTTPURLHandler):
     def _get_supported_prefixes(self) -> List[str]:
         return [self.ONE_DRIVE_PREFIX]
 
-    def _get_local_path(self, path: str, **kwargs: Any) -> str:
+    def _get_local_path(self, path: str, force: bool = False, **kwargs: Any) -> str:
         """
         This implementation downloads the remote resource and caches it locally.
         The resource will only be downloaded if not previously requested.
@@ -825,7 +826,7 @@ class OneDrivePathHandler(HTTPURLHandler):
 
         logger.info(f"URL {path} mapped to direct download link {direct_url}")
 
-        return super()._get_local_path(os.fspath(direct_url), **kwargs)
+        return super()._get_local_path(os.fspath(direct_url), force=force, **kwargs)
 
 
 class PathManager:
@@ -1077,7 +1078,7 @@ class PathManager:
             src_path, dst_path, **kwargs
         )
 
-    def get_local_path(self, path: str, **kwargs: Any) -> str:
+    def get_local_path(self, path: str, force: bool = False, **kwargs: Any) -> str:
         """
         Get a filepath which is compatible with native Python I/O such as `open`
         and `os.path`.
@@ -1087,6 +1088,7 @@ class PathManager:
 
         Args:
             path (str): A URI supported by this PathHandler
+            force(bool): Forces a download from backend if set to True.
 
         Returns:
             local_path (str): a file path which exists on the local file system
@@ -1095,7 +1097,7 @@ class PathManager:
         return self.__get_path_handler(  # type: ignore
             path
         )._get_local_path(
-            path, **kwargs
+            path, force=force, **kwargs
         )
 
     def copy_from_local(
