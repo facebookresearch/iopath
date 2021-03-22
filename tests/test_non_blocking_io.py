@@ -220,6 +220,23 @@ class TestNativeIOAsync(unittest.TestCase):
         with open(_file, "r") as f:
             self.assertEqual(f.read(), _data)
 
+    def test_opena_with_callback_only_called_once(self) -> None:
+        _file_tmp = os.path.join(self._tmpdir, "async.txt.tmp")
+
+        mock_cb = Mock()
+
+        # Callback should be called once even if `close` is called
+        # multiple times.
+        try:
+            f = self._pathmgr.opena(_file_tmp, "w", callback_after_file_close=mock_cb)
+            f.close()
+            f.close()
+            f.close()
+        finally:
+            self.assertTrue(self._pathmgr.async_close())
+        # Callback should have been called exactly once.
+        mock_cb.assert_called_once()
+
     def test_async_custom_executor(self) -> None:
         # At first, neither manager nor executor are set.
         self.assertIsNone(

@@ -224,6 +224,8 @@ class NonBlockingIO(io.IOBase):
         self._io = io_obj
         self._callback_after_file_close = callback_after_file_close
 
+        self._close_called = False
+
     def readable(self) -> bool:
         return False
 
@@ -264,9 +266,12 @@ class NonBlockingIO(io.IOBase):
         the file is not closed before all of the write jobs are complete.
         """
         # `ThreadPool` first closes the file and then executes the callback.
+        # We only execute the callback once even if there are multiple
+        # `f.close` calls.
         self._notify_manager(lambda: self._io.close())
-        if self._callback_after_file_close:
+        if not self._close_called and self._callback_after_file_close:
             self._notify_manager(self._callback_after_file_close)
+        self._close_called = True
 
 
 # NOTE: To use this class, use `buffered=True` in `NonBlockingIOManager`.
@@ -297,6 +302,7 @@ class NonBlockingBufferedIO(io.IOBase):
 
         self._buffers = [io.BytesIO()]
         self._buffer_size = buffering if buffering > 0 else self.MAX_BUFFER_BYTES
+        self._close_called = False
 
     def readable(self) -> bool:
         return False
@@ -328,8 +334,9 @@ class NonBlockingBufferedIO(io.IOBase):
         self._notify_manager(lambda: self._buffers[-1].close())
         # `ThreadPool` first closes the file and then executes the callback.
         self._notify_manager(lambda: self._io.close())
-        if self._callback_after_file_close:
+        if not self._close_called and self._callback_after_file_close:
             self._notify_manager(self._callback_after_file_close)
+        self._close_called = True
 
     def flush(self) -> None:
         """
