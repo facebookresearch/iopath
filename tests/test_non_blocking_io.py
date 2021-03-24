@@ -204,7 +204,7 @@ class TestNativeIOAsync(unittest.TestCase):
             # the callback is called.
             with open(_file_tmp, "r") as f:
                 self.assertEqual(f.read(), _data)
-            self._pathmgr.copy(_file_tmp, _file)
+            self._pathmgr.copy(_file_tmp, _file, overwrite=True)
 
         mock_cb = Mock(side_effect=cb)
 
