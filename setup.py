@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
 
-from os import path
 import runpy
 
 from setuptools import find_packages, setup
+
 
 version = runpy.run_path("iopath/version.py")["__version__"]
 

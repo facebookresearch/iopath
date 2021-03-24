@@ -11,7 +11,9 @@ from unittest.mock import Mock, patch
 
 from iopath.common.file_io import NativePathHandler, PathManager
 from iopath.common.non_blocking_io import (
-    NonBlockingBufferedIO, NonBlockingIO, NonBlockingIOManager
+    NonBlockingBufferedIO,
+    NonBlockingIO,
+    NonBlockingIOManager,
 )
 
 

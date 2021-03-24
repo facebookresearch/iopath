@@ -16,8 +16,8 @@ from iopath.common.file_io import (
     OneDrivePathHandler,
     PathManager,
     PathManagerFactory,
-    get_cache_dir,
     g_pathmgr,
+    get_cache_dir,
 )
 
 

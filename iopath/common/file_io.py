@@ -5,17 +5,25 @@ import concurrent.futures
 import errno
 import logging
 import os
-import portalocker  # type: ignore
 import shutil
 import tempfile
 import traceback
 from collections import OrderedDict
 from typing import (
-    Any, Callable, Dict, Iterable, IO, List, MutableMapping, Optional,
-    Set, Union,
+    IO,
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    MutableMapping,
+    Optional,
+    Set,
+    Union,
 )
 from urllib.parse import urlparse
 
+import portalocker  # type: ignore
 from iopath.common.download import download
 from iopath.common.non_blocking_io import NonBlockingIOManager
 

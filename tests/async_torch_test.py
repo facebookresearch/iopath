@@ -13,8 +13,8 @@ import time
 import torch
 import torch.nn as nn
 import torch.optim as optim
-
 from iopath.common.file_io import PathManager
+
 
 class Model(nn.Module):
     def __init__(self):

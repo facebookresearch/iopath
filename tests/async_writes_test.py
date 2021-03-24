@@ -10,7 +10,9 @@ import logging
 import os
 import tempfile
 import time
+
 from iopath.common.file_io import PathManager
+
 
 logger = logging.getLogger(__name__)
 

@@ -4,6 +4,7 @@ from typing import Any, Iterable
 
 from iopath.common.file_io import PathHandler
 
+
 class TabularUriParser:
     def parse_uri(self, uri: str) ->None:
         pass
