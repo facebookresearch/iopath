@@ -1102,11 +1102,14 @@ class PathManager:
             local_path (str): a file path which exists on the local file system
         """
         path = os.fspath(path)
-        return self.__get_path_handler(  # type: ignore
-            path
-        )._get_local_path(
-            path, force=force, **kwargs
-        )
+        handler = self.__get_path_handler(path)  # type: ignore
+        try:
+            return handler._get_local_path(
+                path, force=force, **kwargs
+            )
+        except TypeError:
+            return handler._get_local_path(path, **kwargs)
+
 
     def copy_from_local(
         self, local_path: str, dst_path: str, overwrite: bool = False, **kwargs: Any
