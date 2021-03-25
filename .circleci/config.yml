@@ -32,7 +32,7 @@ install_dep: &install_dep
   - run:
       name: Install Dependencies
       command: |
-        pip install --progress-bar off flake8 flake8-bugbear flake8-comprehensions isort==4.3.21 'black @ git+https://github.com/psf/black@673327449f86fce558adde153bb6cbe54bfebad2'
+        pip install --progress-bar off flake8 flake8-bugbear flake8-comprehensions isort==4.3.21 black==20.8b1
 
 install_iopath: &install_iopath
   - run:
