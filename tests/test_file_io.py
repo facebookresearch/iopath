@@ -147,15 +147,13 @@ class TestNativeIO(unittest.TestCase):
         with open(_tmpfile_2, "w") as f:
             f.write(_tmpfile_2_contents)
             f.flush()
-        self.assertTrue(
-            self._pathmgr.copy(self._tmpfile, _tmpfile_2, overwrite=True)
-        )
+        self.assertTrue(self._pathmgr.copy(self._tmpfile, _tmpfile_2, overwrite=True))
         with self._pathmgr.open(_tmpfile_2, "r") as f:
             self.assertEqual(f.read(), self._tmpfile_contents)
 
     def test_move(self) -> None:
-        _tmpfile_2 = self._tmpfile + "2" + uuid.uuid4().hex # pyre-ignore
-        _tmpfile_3 = self._tmpfile + "3_" + uuid.uuid4().hex # pyre-ignore
+        _tmpfile_2 = self._tmpfile + "2" + uuid.uuid4().hex  # pyre-ignore
+        _tmpfile_3 = self._tmpfile + "3_" + uuid.uuid4().hex  # pyre-ignore
         _tmpfile_2_contents = "Hello Move"
         with open(_tmpfile_2, "w") as f:
             f.write(_tmpfile_2_contents)
@@ -209,19 +207,17 @@ class TestNativeIO(unittest.TestCase):
         # Make sure _get_path_with_cwd() returns correctly.
         self.assertEqual(
             self._pathmgr._native_path_handler._get_path_with_cwd(self._filename),
-            self._tmpfile
+            self._tmpfile,
         )
         self.assertEqual(
             self._pathmgr._native_path_handler._get_path_with_cwd("/abs.txt"),
-            "/abs.txt"
+            "/abs.txt",
         )
 
     def test_bad_args(self) -> None:
         # TODO (T58240718): Replace with dynamic checks
         with self.assertRaises(ValueError):
-            self._pathmgr.copy(
-                self._tmpfile, self._tmpfile, foo="foo"  # type: ignore
-            )
+            self._pathmgr.copy(self._tmpfile, self._tmpfile, foo="foo")  # type: ignore
         with self.assertRaises(ValueError):
             self._pathmgr.exists(self._tmpfile, foo="foo")  # type: ignore
         with self.assertRaises(ValueError):
@@ -246,7 +242,7 @@ class TestNativeIO(unittest.TestCase):
         self._pathmgr.set_strict_kwargs_checking(False)
 
         self._pathmgr.copy(
-            self._tmpfile, self._tmpfile+"2", foo="foo"  # type: ignore
+            self._tmpfile, self._tmpfile + "2", foo="foo"  # type: ignore
         )
         self._pathmgr.exists(self._tmpfile, foo="foo")  # type: ignore
         self._pathmgr.get_local_path(self._tmpfile, foo="foo")  # type: ignore
@@ -334,9 +330,7 @@ class TestHTTPIO(unittest.TestCase):
         with self.assertRaises(NotImplementedError):
             self._pathmgr.exists(self._remote_uri, foo="foo")  # type: ignore
         with self.assertRaises(ValueError):
-            self._pathmgr.get_local_path(
-                self._remote_uri, foo="foo"  # type: ignore
-            )
+            self._pathmgr.get_local_path(self._remote_uri, foo="foo")  # type: ignore
         with self.assertRaises(NotImplementedError):
             self._pathmgr.isdir(self._remote_uri, foo="foo")  # type: ignore
         with self.assertRaises(NotImplementedError):

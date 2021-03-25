@@ -6,8 +6,9 @@ from iopath.common.file_io import PathHandler
 
 
 class TabularUriParser:
-    def parse_uri(self, uri: str) ->None:
+    def parse_uri(self, uri: str) -> None:
         pass
+
 
 class TabularPathHandler(PathHandler):
     def _opent(

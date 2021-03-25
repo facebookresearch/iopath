@@ -24,6 +24,7 @@ class TestNativeIOAsync(unittest.TestCase):
     `PathHandler`-s should only require a single test since
     all `PathHandler`-s operate in the same way.
     """
+
     _tmpdir: Optional[str] = None
     _pathmgr = PathManager()
 
@@ -48,14 +49,14 @@ class TestNativeIOAsync(unittest.TestCase):
         _tmpfile = os.path.join(self._tmpdir, "async.txt")
         try:
             # Write the files.
-            with self._pathmgr.opena(_tmpfile+"f", "w") as f:
+            with self._pathmgr.opena(_tmpfile + "f", "w") as f:
                 f.write("f1 ")
-                with self._pathmgr.opena(_tmpfile+"g", "w") as g:
+                with self._pathmgr.opena(_tmpfile + "g", "w") as g:
                     f.write("f2 ")
                     g.write("g1 ")
                     f.write("f3 ")
                 f.write("f4 ")
-            with self._pathmgr.opena(_tmpfile+"f", "a") as f:
+            with self._pathmgr.opena(_tmpfile + "f", "a") as f:
                 f.write("f5 ")
             F_STR = "f1 f2 f3 f4 f5 "
             G_STR = "g1 "
@@ -67,18 +68,16 @@ class TestNativeIOAsync(unittest.TestCase):
                 [type(self._pathmgr._native_path_handler)],
             )
             # Test that 2 paths were properly logged in `NonBlockingIOManager`.
-            manager = (
-                self._pathmgr._native_path_handler._non_blocking_io_manager
-            )
+            manager = self._pathmgr._native_path_handler._non_blocking_io_manager
             self.assertEqual(len(manager._path_to_data), 2)
         finally:
             # Join the threads to wait for files to be written.
             self.assertTrue(self._pathmgr.async_close())
 
         # Check that both files were asynchronously written and written in order.
-        with self._pathmgr.open(_tmpfile+"f", "r") as f:
+        with self._pathmgr.open(_tmpfile + "f", "r") as f:
             self.assertEqual(f.read(), F_STR)
-        with self._pathmgr.open(_tmpfile+"g", "r") as g:
+        with self._pathmgr.open(_tmpfile + "g", "r") as g:
             self.assertEqual(g.read(), G_STR)
         # Test that both `NonBlockingIO` objects `f` and `g` are finally closed.
         self.assertEqual(len(manager._path_to_data), 0)
@@ -87,14 +86,14 @@ class TestNativeIOAsync(unittest.TestCase):
         _tmpfile = os.path.join(self._tmpdir, "async.txt")
         _tmpfile_contents = "Async Text"
         try:
-            for _ in range(1):          # Opens 1 thread
-                with self._pathmgr.opena(_tmpfile+"1", "w") as f:
+            for _ in range(1):  # Opens 1 thread
+                with self._pathmgr.opena(_tmpfile + "1", "w") as f:
                     f.write(f"{_tmpfile_contents}-1")
-            for _ in range(2):          # Opens 2 threads
-                with self._pathmgr.opena(_tmpfile+"2", "w") as f:
+            for _ in range(2):  # Opens 2 threads
+                with self._pathmgr.opena(_tmpfile + "2", "w") as f:
                     f.write(f"{_tmpfile_contents}-2")
-            for _ in range(3):          # Opens 3 threads
-                with self._pathmgr.opena(_tmpfile+"3", "w") as f:
+            for _ in range(3):  # Opens 3 threads
+                with self._pathmgr.opena(_tmpfile + "3", "w") as f:
                     f.write(f"{_tmpfile_contents}-3")
             _path_to_data = (
                 self._pathmgr._native_path_handler._non_blocking_io_manager._path_to_data
@@ -102,20 +101,22 @@ class TestNativeIOAsync(unittest.TestCase):
             # Join the threads for the 1st and 3rd file and ensure threadpool completed.
             _path_to_data_copy = dict(_path_to_data)
             self.assertTrue(
-                self._pathmgr.async_join(_tmpfile+"1", _tmpfile+"3")      # Removes paths from `_path_to_io`.
+                self._pathmgr.async_join(
+                    _tmpfile + "1", _tmpfile + "3"
+                )  # Removes paths from `_path_to_io`.
             )
-            self.assertFalse(_path_to_data_copy[_tmpfile+"1"].thread.is_alive())
-            self.assertFalse(_path_to_data_copy[_tmpfile+"3"].thread.is_alive())
-            self.assertEqual(len(_path_to_data), 1)            # 1 file remaining
+            self.assertFalse(_path_to_data_copy[_tmpfile + "1"].thread.is_alive())
+            self.assertFalse(_path_to_data_copy[_tmpfile + "3"].thread.is_alive())
+            self.assertEqual(len(_path_to_data), 1)  # 1 file remaining
         finally:
             # Join all the remaining threads
             _path_to_data_copy = dict(_path_to_data)
             self.assertTrue(self._pathmgr.async_close())
 
         # Ensure data cleaned up.
-        self.assertFalse(_path_to_data_copy[_tmpfile+"2"].thread.is_alive())
+        self.assertFalse(_path_to_data_copy[_tmpfile + "2"].thread.is_alive())
         self.assertEqual(len(self._pathmgr._async_handlers), 0)
-        self.assertEqual(len(_path_to_data), 0)                     # 0 files remaining
+        self.assertEqual(len(_path_to_data), 0)  # 0 files remaining
 
     def test_opena_normpath(self) -> None:
         _filename = "async.txt"
@@ -209,7 +210,9 @@ class TestNativeIOAsync(unittest.TestCase):
         mock_cb = Mock(side_effect=cb)
 
         try:
-            with self._pathmgr.opena(_file_tmp, "w", callback_after_file_close=mock_cb) as f:
+            with self._pathmgr.opena(
+                _file_tmp, "w", callback_after_file_close=mock_cb
+            ) as f:
                 f.write(_data)
         finally:
             self.assertTrue(self._pathmgr.async_close())
@@ -241,12 +244,8 @@ class TestNativeIOAsync(unittest.TestCase):
 
     def test_async_custom_executor(self) -> None:
         # At first, neither manager nor executor are set.
-        self.assertIsNone(
-            self._pathmgr._native_path_handler._non_blocking_io_manager
-        )
-        self.assertIsNone(
-            self._pathmgr._native_path_handler._non_blocking_io_executor
-        )
+        self.assertIsNone(self._pathmgr._native_path_handler._non_blocking_io_manager)
+        self.assertIsNone(self._pathmgr._native_path_handler._non_blocking_io_executor)
         # Then, override the `NativePathHandler` and set a custom executor.
         executor = concurrent.futures.ThreadPoolExecutor(
             max_workers=128, thread_name_prefix="my prefix"
@@ -276,9 +275,9 @@ class TestNativeIOAsync(unittest.TestCase):
         # Test seek.
         try:
             with self._pathmgr.opena(_file, "wb") as f:
-                f.write(b"012345")      # file = 012345^
-                f.seek(1)               # file = 0^12345
-                f.write(b"##")          # file = 0##^345
+                f.write(b"012345")  # file = 012345^
+                f.seek(1)  # file = 0^12345
+                f.write(b"##")  # file = 0##^345
         finally:
             self.assertTrue(self._pathmgr.async_join())
             with self._pathmgr.open(_file, "rb") as f:
@@ -287,9 +286,9 @@ class TestNativeIOAsync(unittest.TestCase):
         # Test truncate.
         try:
             with self._pathmgr.opena(_file, "wb") as f:
-                f.write(b"012345")      # file = 012345^
-                f.seek(2)               # file = 01^2345
-                f.truncate()            # file = 01^
+                f.write(b"012345")  # file = 012345^
+                f.seek(2)  # file = 01^2345
+                f.truncate()  # file = 01^
         finally:
             self.assertTrue(self._pathmgr.async_join())
             with self._pathmgr.open(_file, "rb") as f:
@@ -299,11 +298,11 @@ class TestNativeIOAsync(unittest.TestCase):
         try:
             with self._pathmgr.opena(_file, "wb") as f:
                 f.write(b"0123456789")  # file = 0123456789^
-                f.seek(2)               # file = 01^23456789
-                f.write(b"##")          # file = 01##^456789
+                f.seek(2)  # file = 01^23456789
+                f.write(b"##")  # file = 01##^456789
                 f.seek(3, io.SEEK_CUR)  # file = 01##456^789
-                f.truncate()            # file = 01##456^
-                f.write(b"$")           # file = 01##456$^
+                f.truncate()  # file = 01##456^
+                f.write(b"$")  # file = 01##456$^
         finally:
             self.assertTrue(self._pathmgr.async_join())
             with self._pathmgr.open(_file, "rb") as f:
@@ -346,11 +345,11 @@ class TestNonBlockingIO(unittest.TestCase):
                 path=_file, io_obj=open(_file, "w")
             )
             with patch.object(
-                f, '_notify_manager', wraps=f._notify_manager
+                f, "_notify_manager", wraps=f._notify_manager
             ) as mock_notify_manager:
-                f.write("."*1)
-                f.write("."*2)
-                f.write("."*3)
+                f.write("." * 1)
+                f.write("." * 2)
+                f.write("." * 3)
                 # Should notify manager 3 times: 3 write calls.
                 self.assertEqual(mock_notify_manager.call_count, 3)
                 mock_notify_manager.reset_mock()
@@ -362,7 +361,7 @@ class TestNonBlockingIO(unittest.TestCase):
             self.assertTrue(self._io_manager._close_thread_pool())
 
         with open(_file, "r") as f:
-            self.assertEqual(f.read(), "."*6)
+            self.assertEqual(f.read(), "." * 6)
 
     def test_buffered_io_manager(self) -> None:
         _file = os.path.join(self._tmpdir, "buffered.txt")
@@ -372,16 +371,16 @@ class TestNonBlockingIO(unittest.TestCase):
             f = self._buffered_io_manager.get_non_blocking_io(
                 path=_file, io_obj=open(_file, "wb"), buffering=10
             )
-            with patch.object(f, 'flush', wraps=f.flush) as mock_flush:
+            with patch.object(f, "flush", wraps=f.flush) as mock_flush:
                 with patch.object(
-                    f, '_notify_manager', wraps=f._notify_manager
+                    f, "_notify_manager", wraps=f._notify_manager
                 ) as mock_notify_manager:
-                    f.write(b"."*9)
-                    mock_flush.assert_not_called()      # buffer not filled - don't flush
+                    f.write(b"." * 9)
+                    mock_flush.assert_not_called()  # buffer not filled - don't flush
                     mock_notify_manager.assert_not_called()
                     # Should flush when full.
-                    f.write(b"."*13)
-                    mock_flush.assert_called_once()     # buffer filled - should flush
+                    f.write(b"." * 13)
+                    mock_flush.assert_called_once()  # buffer filled - should flush
                     # `flush` should notify manager 4 times: 3 `file.write` and 1 `buffer.close`.
                     # Buffer is split into 3 chunks of size 10, 10, and 2.
                     self.assertEqual(len(f._buffers), 2)  # 22-byte and 0-byte buffers
@@ -395,14 +394,14 @@ class TestNonBlockingIO(unittest.TestCase):
             f = self._buffered_io_manager.get_non_blocking_io(
                 path=_file, io_obj=open(_file, "ab"), buffering=10
             )
-            with patch.object(f, 'flush', wraps=f.flush) as mock_flush:
-                f.write(b"."*5)
+            with patch.object(f, "flush", wraps=f.flush) as mock_flush:
+                f.write(b"." * 5)
                 mock_flush.assert_not_called()
                 f.close()
-                mock_flush.assert_called()              # flush on exit
+                mock_flush.assert_called()  # flush on exit
         finally:
             self.assertTrue(self._buffered_io_manager._join())
             self.assertTrue(self._buffered_io_manager._close_thread_pool())
 
         with open(_file, "rb") as f:
-            self.assertEqual(f.read(), b"."*27)
+            self.assertEqual(f.read(), b"." * 27)

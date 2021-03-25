@@ -16,11 +16,13 @@ from iopath.common.file_io import PathManager
 
 logger = logging.getLogger(__name__)
 
+
 def printx(str):
     logger.warning(f"[{time.strftime('%X')}] {str}")
 
+
 class TestDriver:
-    LEN = 100000000        # This many characters per append job
+    LEN = 100000000  # This many characters per append job
     NUM_JOBS = 10
     _pathmgr = PathManager()
 
@@ -36,17 +38,21 @@ class TestDriver:
 
             FINAL_STR = ""
             with self._pathmgr.opena(URI, "a") as f:
-                for i in range(self.NUM_JOBS):       # `i` goes from 0 to 9
-                    FINAL_STR += f"{i}"*self.LEN
-                    f.write(f"{i}"*self.LEN)
+                for i in range(self.NUM_JOBS):  # `i` goes from 0 to 9
+                    FINAL_STR += f"{i}" * self.LEN
+                    f.write(f"{i}" * self.LEN)
 
             mid_time = time.time()
-            printx(f"Time taken to dispatch {self.NUM_JOBS} threads: {mid_time - start_time}")
+            printx(
+                f"Time taken to dispatch {self.NUM_JOBS} threads: {mid_time - start_time}"
+            )
             printx("Calling `async_join()`")
             # We want this `async_join` call to take time. If it is instantaneous, then our
             # async write calls are not running asynchronously.
             assert self._pathmgr.async_join()
-            printx(f"Time Python waited for `async_join()` call to finish: {time.time() - mid_time}")
+            printx(
+                f"Time Python waited for `async_join()` call to finish: {time.time() - mid_time}"
+            )
 
             assert self._pathmgr.async_close()
 
@@ -60,6 +66,7 @@ class TestDriver:
                 "then Python waited for the threads to finish and the Async Writes "
                 "Test SUCCEEDS. Otherwise FAILURE."
             )
+
 
 if __name__ == "__main__":
     printx("Async Writes Test starting.")

@@ -26,6 +26,7 @@ class Model(nn.Module):
         self.fc2 = nn.Linear(120, 84)
         self.fc3 = nn.Linear(84, 10)
 
+
 class TestDriver:
     _pathmgr = PathManager()
 
@@ -46,14 +47,17 @@ class TestDriver:
 
                 f = self._pathmgr.opena(URI, "wb")
                 i = "*"
-                large = f"{i}"*1000000000
+                large = f"{i}" * 1000000000
 
                 print("Starting `torch.save` call.")
-                torch.save({
-                    'model_state_dict': model.state_dict(),
-                    'optimizer_state_dict': optimizer.state_dict(),
-                    'large': large,
-                }, f)
+                torch.save(
+                    {
+                        "model_state_dict": model.state_dict(),
+                        "optimizer_state_dict": optimizer.state_dict(),
+                        "large": large,
+                    },
+                    f,
+                )
                 f.close()
                 start_time = time.time()
 
@@ -70,14 +74,15 @@ class TestDriver:
             assert self._pathmgr.async_close()
 
             checkpoint = torch.load(URI)
-            for key_item_1, key_item_2 in (
-                zip(model.state_dict().items(), checkpoint["model_state_dict"].items())
+            for key_item_1, key_item_2 in zip(
+                model.state_dict().items(), checkpoint["model_state_dict"].items()
             ):
                 assert torch.equal(key_item_1[1], key_item_2[1])
             assert optimizer.state_dict() == checkpoint["optimizer_state_dict"]
             assert large == checkpoint["large"]
 
             print("Async `torch.save` Test succeeded.")
+
 
 if __name__ == "__main__":
     print("Async `torch.save` Test starting.")
