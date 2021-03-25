@@ -730,6 +730,8 @@ class NativePathHandler(PathHandler):
         return True
 
     def _get_path_with_cwd(self, path: str) -> str:
+        if not path:
+            return path
         return os.path.normpath(
             path if not self._cwd else os.path.join(self._cwd, path)
         )
