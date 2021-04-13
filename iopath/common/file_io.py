@@ -102,6 +102,8 @@ class LazyPath(os.PathLike):
     It can be materialized to a str using `os.fspath`.
     """
 
+    KEPT_ATTRIBUTES = ["__getstate__", "__setstate__"]
+
     def __init__(self, func: Callable[[], str]) -> None:
         """
         Args:
@@ -121,6 +123,8 @@ class LazyPath(os.PathLike):
 
     # behave more like a str after evaluated
     def __getattr__(self, name: str):  # type: ignore
+        if name in LazyPath.KEPT_ATTRIBUTES:
+            return super().__getattr__(name)
         if self._value is None:
             raise AttributeError(f"Uninitialized LazyPath has no attribute: {name}.")
         return getattr(self._value, name)
