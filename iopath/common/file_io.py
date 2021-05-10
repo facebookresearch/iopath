@@ -22,6 +22,7 @@ from typing import (
     Union,
 )
 from urllib.parse import urlparse
+import uuid
 
 import portalocker  # type: ignore
 from iopath.common.download import download
@@ -734,11 +735,12 @@ class NativePathHandler(PathHandler):
             path if not self._cwd else os.path.join(self._cwd, path)
         )
 
-
 class HTTPURLHandler(PathHandler):
     """
     Download URLs and cache them to disk.
     """
+
+    MAX_FILENAME_LEN = 250
 
     def __init__(self) -> None:
         self.cache_map: Dict[str, str] = {}
@@ -763,6 +765,9 @@ class HTTPURLHandler(PathHandler):
                 get_cache_dir(), os.path.dirname(parsed_url.path.lstrip("/"))
             )
             filename = path.split("/")[-1]
+            if len(filename) > self.MAX_FILENAME_LEN:
+                filename = filename[:100] + "_" + uuid.uuid4().hex
+
             cached = os.path.join(dirname, filename)
             with file_lock(cached):
                 if not os.path.isfile(cached):
