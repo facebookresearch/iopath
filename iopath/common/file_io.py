@@ -1237,7 +1237,7 @@ class PathManager:
         return False
 
     def register_handler(
-        self, handler: PathHandler, allow_override: bool = False
+        self, handler: PathHandler, allow_override: bool = True
     ) -> None:
         """
         Register a path handler associated with `handler._get_supported_prefixes`
@@ -1357,16 +1357,24 @@ class PathManagerFactory:
     pm_list = {}
 
     @staticmethod
-    def get(key=GLOBAL_PATH_MANAGER) -> PathManager:
+    def get(key=GLOBAL_PATH_MANAGER, defaults_setup=False) -> PathManager:
         """
         Get the path manager instance associated with a key.
         A new instance will be created if there is no existing
         instance associated with the key passed in.
         Args:
             key (str):
+            defaults_setup (bool): If True, setup_defaults is called.
         """
         if key not in PathManagerFactory.pm_list:
             PathManagerFactory.pm_list[key] = PathManager()
+            if defaults_setup:
+                try:
+                    from iopath.common.setup_defaults import setup_defaults
+                    setup_defaults(PathManagerFactory.pm_list[key])
+                except ImportError:
+                    pass
+
         return PathManagerFactory.pm_list[key]
 
     @staticmethod
@@ -1386,4 +1394,4 @@ A global instance of PathManager.
 This global instance is provided for backward compatibility, but it is
 recommended that clients use PathManagerFactory
 """
-g_pathmgr = PathManagerFactory.get()
+g_pathmgr = PathManagerFactory.get(defaults_setup=True)
