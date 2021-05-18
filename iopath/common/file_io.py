@@ -8,6 +8,7 @@ import os
 import shutil
 import tempfile
 import traceback
+import uuid
 from collections import OrderedDict
 from typing import (
     IO,
@@ -22,7 +23,6 @@ from typing import (
     Union,
 )
 from urllib.parse import urlparse
-import uuid
 
 import portalocker  # type: ignore
 from iopath.common.download import download
@@ -735,6 +735,7 @@ class NativePathHandler(PathHandler):
             path if not self._cwd else os.path.join(self._cwd, path)
         )
 
+
 class HTTPURLHandler(PathHandler):
     """
     Download URLs and cache them to disk.
@@ -748,7 +749,13 @@ class HTTPURLHandler(PathHandler):
     def _get_supported_prefixes(self) -> List[str]:
         return ["http://", "https://", "ftp://"]
 
-    def _get_local_path(self, path: str, force: bool = False, **kwargs: Any) -> str:
+    def _get_local_path(
+        self,
+        path: str,
+        force: bool = False,
+        cache_dir: Optional[str] = None,
+        **kwargs: Any,
+    ) -> str:
         """
         This implementation downloads the remote resource and caches it locally.
         The resource will only be downloaded if not previously requested.
@@ -762,7 +769,7 @@ class HTTPURLHandler(PathHandler):
             logger = logging.getLogger(__name__)
             parsed_url = urlparse(path)
             dirname = os.path.join(
-                get_cache_dir(), os.path.dirname(parsed_url.path.lstrip("/"))
+                get_cache_dir(cache_dir), os.path.dirname(parsed_url.path.lstrip("/"))
             )
             filename = path.split("/")[-1]
             if len(filename) > self.MAX_FILENAME_LEN:
@@ -1371,6 +1378,7 @@ class PathManagerFactory:
             if defaults_setup:
                 try:
                     from iopath.common.setup_defaults import setup_defaults
+
                     setup_defaults(PathManagerFactory.pm_list[key])
                 except ImportError:
                     pass

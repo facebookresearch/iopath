@@ -297,6 +297,13 @@ class TestHTTPIO(unittest.TestCase):
             local_path = self._pathmgr.get_local_path(self._remote_uri, force=True)
             self.assertTrue(os.path.exists(local_path))
             self.assertTrue(os.path.isfile(local_path))
+            # Now get a copy with cache_dir set to a temporary directory.
+            local_path = self._pathmgr.get_local_path(
+                self._remote_uri, cache_dir=self._cache_dir
+            )
+            self.assertTrue(local_path.startswith(self._cache_dir))
+            self.assertTrue(os.path.exists(local_path))
+            self.assertTrue(os.path.isfile(local_path))
 
     def test_open(self) -> None:
         with self._patch_download():
