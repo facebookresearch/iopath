@@ -26,6 +26,7 @@ from urllib.parse import urlparse
 
 import portalocker  # type: ignore
 from iopath.common.download import download
+from iopath.common.event_logger import EventLogger, VTYPE
 from iopath.common.non_blocking_io import NonBlockingIOManager
 
 
@@ -142,7 +143,7 @@ class LazyPath(os.PathLike):
             return super().__str__()
 
 
-class PathHandler:
+class PathHandler(EventLogger):
     """
     PathHandler is a base class that defines common I/O functionality for a URI
     protocol. It routes I/O for a generic URI which may look like "protocol://*"
@@ -169,8 +170,15 @@ class PathHandler:
                     path_manager.register_handler(path_handler)
                 ```
         """
+        super().__init__()
         self._non_blocking_io_manager = None
         self._non_blocking_io_executor = async_executor
+        try:
+            from iopath.common.setup_defaults import setup_handler_defaults
+
+            setup_handler_defaults(self)
+        except ImportError:
+            pass
 
     def _check_kwargs(self, kwargs: Dict[str, Any]) -> None:
         """
@@ -744,6 +752,7 @@ class HTTPURLHandler(PathHandler):
     MAX_FILENAME_LEN = 250
 
     def __init__(self) -> None:
+        super().__init__()
         self.cache_map: Dict[str, str] = {}
 
     def _get_supported_prefixes(self) -> List[str]:
@@ -886,6 +895,11 @@ class PathManager:
         `PathManager.join`.
         """
 
+        self._enable_logging = False
+        """
+        Flag for enabling / disabling telemetry.
+        """
+
     def __get_path_handler(self, path: Union[str, os.PathLike]) -> PathHandler:
         """
         Finds a PathHandler that supports the given path. Falls back to the native
@@ -902,6 +916,26 @@ class PathManager:
             if path.startswith(p):
                 return self._path_handlers[p]
         return self._native_path_handler
+
+    def __add_tmetry_keys(self, handler: PathHandler, kvs: Dict[str, VTYPE]) -> None:
+        handler.add_keys(kvs)
+
+    def __get_open_keys(self, mode: str, buffering: int) -> Dict[str, VTYPE]:
+        kvs = {}
+        kvs["op"] = "open"
+        if "r" in mode:
+            kvs["mode"] = "read"
+        elif "w" in mode:
+            kvs["mode"] = "write"
+        elif "a" in mode:
+            kvs["mode"] = "append"
+        kvs["buffering"] = buffering
+        if "b" in mode:
+            kvs["format"] = "binary"
+        else:
+            kvs["format"] = "text"
+
+        return kvs
 
     def opent(
         self, path: str, mode: str = "r", buffering: int = 32, **kwargs: Any
@@ -940,9 +974,15 @@ class PathManager:
         Returns:
             file: a file-like object.
         """
-        return self.__get_path_handler(path)._open(  # type: ignore
+        handler = self.__get_path_handler(path)
+        bret = self.__get_path_handler(path)._open(  # type: ignore
             path, mode, buffering=buffering, **kwargs
         )
+        if self._enable_logging:
+            kvs = self.__get_open_keys(mode, buffering)
+            self.__add_tmetry_keys(handler, kvs)
+            handler.log_event()
+        return bret
 
     # NOTE: This feature is only implemented for `NativePathHandler` and can
     # currently only be used in write mode.
@@ -1328,6 +1368,9 @@ class PathManager:
         self._native_path_handler._strict_kwargs_check = enable
         for handler in self._path_handlers.values():
             handler._strict_kwargs_check = enable
+
+    def set_logging(self, enable_logging=True):
+        self._enable_logging = enable_logging
 
 
 """
