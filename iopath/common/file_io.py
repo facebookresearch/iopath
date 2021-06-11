@@ -895,7 +895,7 @@ class PathManager:
         `PathManager.join`.
         """
 
-        self._enable_logging = False
+        self._enable_logging = True
         """
         Flag for enabling / disabling telemetry.
         """
@@ -979,9 +979,17 @@ class PathManager:
             path, mode, buffering=buffering, **kwargs
         )
         if self._enable_logging:
-            kvs = self.__get_open_keys(mode, buffering)
-            self.__add_tmetry_keys(handler, kvs)
-            handler.log_event()
+            try:
+                kvs = self.__get_open_keys(mode, buffering)
+                self.__add_tmetry_keys(handler, kvs)
+                handler.log_event()
+            except Exception:
+                logger = logging.getLogger(__name__)
+                logger.exception(
+                    "An exception occurred in telemetry logging."
+                    "Disabling telemetry to prevent further exceptions."
+                )
+                self._enable_logging = False
         return bret
 
     # NOTE: This feature is only implemented for `NativePathHandler` and can
