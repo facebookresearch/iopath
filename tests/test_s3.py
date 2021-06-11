@@ -5,6 +5,7 @@ import unittest
 
 from iopath.common.file_io import PathManager
 from iopath.common.s3 import S3PathHandler
+from unittest.mock import patch
 
 try:
     import boto3
@@ -19,6 +20,10 @@ class TestsS3(unittest.TestCase):
         "Provide an s3 project and bucket you are"
         + "authorised against, then set the s3_auth flag to True"
     )
+
+    def run(self, result=None):
+        with patch("iopath.common.event_logger.EventLogger.log_event"):
+            super(TestsS3, self).run(result)
 
     #############################################
     # Shared

@@ -19,9 +19,13 @@ from iopath.common.file_io import (
     g_pathmgr,
     get_cache_dir,
 )
+# from iopath.common.event_logger import EventLogger
 
 
+
+# @patch("iopath.common.event_logger.EventLogger.log_event", side_effect=log_event_mock)
 class TestNativeIO(unittest.TestCase):
+
     _tmpdir: Optional[str] = None
     _filename: Optional[str] = None
     _tmpfile: Optional[str] = None
@@ -44,6 +48,10 @@ class TestNativeIO(unittest.TestCase):
         if cls._tmpdir is not None:
             shutil.rmtree(cls._tmpdir)  # type: ignore
 
+    def run(self, result=None):
+        with patch("iopath.common.event_logger.EventLogger.log_event"):
+            super(TestNativeIO, self).run(result)
+
     def setUp(self) -> None:
         # Reset class variables set by methods before each test.
         self._pathmgr.set_cwd(None)
@@ -51,7 +59,12 @@ class TestNativeIO(unittest.TestCase):
         self._pathmgr._native_path_handler._non_blocking_io_executor = None
         self._pathmgr._async_handlers.clear()
 
+    # @patch("iopath.common.event_logger.EventLogger.log_event")
+    def log_event_mock(self, topic: Optional[str] = None):
+        pass
+
     def test_open(self) -> None:
+        # with patch("iopath.common.event_logger.EventLogger.log_event") as foo:
         # pyre-ignore
         with self._pathmgr.open(self._tmpfile, "r") as f:
             self.assertEqual(f.read(), self._tmpfile_contents)
@@ -67,6 +80,7 @@ class TestNativeIO(unittest.TestCase):
         PathManagerFactory.remove("test_pm")
 
     def test_open_args(self) -> None:
+        # with patch("iopath.common.event_logger.EventLogger.log_event") as foo:
         self._pathmgr.set_strict_kwargs_checking(True)
         f = self._pathmgr.open(
             self._tmpfile,  # type: ignore
@@ -265,6 +279,10 @@ class TestHTTPIO(unittest.TestCase):
     _filename = "facebook.html"
     _pathmgr = PathManager()
 
+    def run(self, result=None):
+        with patch("iopath.common.event_logger.EventLogger.log_event"):
+            super(TestHTTPIO, self).run(result)
+
     @contextmanager
     def _patch_download(self) -> Generator[None, None, None]:
         def fake_download(url: str, dir: str, *, filename: str) -> str:
@@ -366,6 +384,10 @@ class TestHTTPIO(unittest.TestCase):
 class TestLazyPath(unittest.TestCase):
     _pathmgr = PathManager()
 
+    def run(self, result=None):
+        with patch("iopath.common.event_logger.EventLogger.log_event"):
+            super(TestLazyPath, self).run(result)
+
     def test_materialize(self) -> None:
         f = MagicMock(return_value="test")
         x = LazyPath(f)
@@ -410,6 +432,10 @@ class TestLazyPath(unittest.TestCase):
 
 class TestOneDrive(unittest.TestCase):
     _url = "https://1drv.ms/u/s!Aus8VCZ_C_33gQbJsUPTIj3rQu99"
+
+    def run(self, result=None):
+        with patch("iopath.common.event_logger.EventLogger.log_event"):
+            super(TestOneDrive, self).run(result)
 
     def test_one_drive_download(self) -> None:
         _direct_url = OneDrivePathHandler().create_one_drive_direct_download(self._url)

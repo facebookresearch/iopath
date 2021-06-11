@@ -28,6 +28,10 @@ class TestNativeIOAsync(unittest.TestCase):
     _tmpdir: Optional[str] = None
     _pathmgr = PathManager()
 
+    def run(self, result=None):
+        with patch("iopath.common.event_logger.EventLogger.log_event"):
+            super(TestNativeIOAsync, self).run(result)
+
     @classmethod
     def setUpClass(cls) -> None:
         cls._tmpdir = tempfile.mkdtemp()
