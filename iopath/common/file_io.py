@@ -529,6 +529,12 @@ class NativePathHandler(PathHandler):
 
     _cwd = None
 
+    def __init__(
+        self,
+        async_executor: Optional[concurrent.futures.Executor] = None,
+    ) -> None:
+        super().__init__(async_executor)
+
     def _get_local_path(self, path: str, force: bool = False, **kwargs: Any) -> str:
         self._check_kwargs(kwargs)
         return os.fspath(path)
@@ -917,10 +923,37 @@ class PathManager:
                 return self._path_handlers[p]
         return self._native_path_handler
 
-    def __add_tmetry_keys(self, handler: PathHandler, kvs: Dict[str, VTYPE]) -> None:
-        handler.add_keys(kvs)
+    def __log_tmetry_keys(self, handler: PathHandler, kvs: Dict[str, VTYPE]) -> None:
+        """
+        Logs a dictionary of key-value pairs to a given path handler.
 
-    def __get_open_keys(self, mode: str, buffering: int) -> Dict[str, VTYPE]:
+        Args:
+            handler (PathHandler): The path handler to send the key-value pairs to.
+            kvs (Dict): Dict of Key-value pairs to be logged.
+
+        """
+        if self._enable_logging:
+            handler.add_keys(kvs)
+            try:
+                handler.log_event()
+            except Exception:
+                logger = logging.getLogger(__name__)
+                logger.exception(
+                    "An exception occurred in telemetry logging."
+                    "Disabling telemetry to prevent further exceptions."
+                )
+                self._enable_logging = False
+
+    def __get_open_keys(self, path: str, mode: str, buffering: int) -> Dict[str, VTYPE]:
+        """
+        Helper function to return common set of key-value pairs applicable to open apis.
+
+        Args:
+            path (str):
+            mode (str):
+            buffering (int):
+
+        """
         kvs = {}
         kvs["op"] = "open"
         if "r" in mode:
@@ -934,6 +967,7 @@ class PathManager:
             kvs["format"] = "binary"
         else:
             kvs["format"] = "text"
+        kvs["path"] = path
 
         return kvs
 
@@ -975,22 +1009,14 @@ class PathManager:
             file: a file-like object.
         """
         handler = self.__get_path_handler(path)
-        bret = self.__get_path_handler(path)._open(  # type: ignore
+        bret = handler._open(  # type: ignore
             path, mode, buffering=buffering, **kwargs
         )
-        if self._enable_logging:
-            try:
-                kvs = self.__get_open_keys(mode, buffering)
-                self.__add_tmetry_keys(handler, kvs)
-                handler.log_event()
-            except Exception:
-                logger = logging.getLogger(__name__)
-                logger.exception(
-                    "An exception occurred in telemetry logging."
-                    "Disabling telemetry to prevent further exceptions."
-                )
-                self._enable_logging = False
+
+        kvs = self.__get_open_keys(path, mode, buffering)
+        self.__log_tmetry_keys(handler, kvs)
         return bret
+
 
     # NOTE: This feature is only implemented for `NativePathHandler` and can
     # currently only be used in write mode.
@@ -1119,9 +1145,13 @@ class PathManager:
         assert self.__get_path_handler(  # type: ignore
             src_path
         ) == self.__get_path_handler(dst_path)
-        return self.__get_path_handler(src_path)._copy(
+        handler = self.__get_path_handler(src_path)
+        bret = handler._copy(
             src_path, dst_path, overwrite, **kwargs
         )
+        kvs = {"op": "copy", "path": src_path, "dst_path": dst_path}
+        self.__log_tmetry_keys(handler, kvs)
+        return bret
 
     def mv(self, src_path: str, dst_path: str, **kwargs: Any) -> bool:
         """
@@ -1145,7 +1175,11 @@ class PathManager:
         ) == self.__get_path_handler(
             dst_path
         ), "Src and dest paths must be supported by the same path handler."
-        return self.__get_path_handler(src_path)._mv(src_path, dst_path, **kwargs)
+        handler = self.__get_path_handler(src_path)
+        bret =  handler._mv(src_path, dst_path, **kwargs)
+        kvs = {"op": "mv", "path": src_path, "dst_path": dst_path}
+        self.__log_tmetry_keys(handler, kvs)
+        return bret
 
     def get_local_path(self, path: str, force: bool = False, **kwargs: Any) -> str:
         """
@@ -1165,9 +1199,12 @@ class PathManager:
         path = os.fspath(path)
         handler = self.__get_path_handler(path)  # type: ignore
         try:
-            return handler._get_local_path(path, force=force, **kwargs)
+            bret = handler._get_local_path(path, force=force, **kwargs)
         except TypeError:
-            return handler._get_local_path(path, **kwargs)
+            bret = handler._get_local_path(path, **kwargs)
+        kvs = {"op": "get_local_path", "path": path, "force": force}
+        self.__log_tmetry_keys(handler, kvs)
+        return bret
 
     def copy_from_local(
         self, local_path: str, dst_path: str, overwrite: bool = False, **kwargs: Any
@@ -1187,9 +1224,19 @@ class PathManager:
             status (bool): True on success
         """
         assert os.path.exists(local_path)
-        return self.__get_path_handler(dst_path)._copy_from_local(
+        handler = self.__get_path_handler(dst_path)
+
+        kvs = {
+            "op": "copy_from_local",
+            "path": local_path,
+            "dst_path": dst_path,
+            "overwrite": overwrite
+        }
+        bret = handler._copy_from_local(
             local_path=local_path, dst_path=dst_path, overwrite=overwrite, **kwargs
         )
+        self.__log_tmetry_keys(handler, kvs)
+        return bret
 
     def exists(self, path: str, **kwargs: Any) -> bool:
         """
@@ -1201,7 +1248,11 @@ class PathManager:
         Returns:
             bool: true if the path exists
         """
-        return self.__get_path_handler(path)._exists(path, **kwargs)  # type: ignore
+        handler = self.__get_path_handler(path)
+        bret = handler._exists(path, **kwargs)  # type: ignore
+        kvs = {"op": "exists", "path": path}
+        self.__log_tmetry_keys(handler, kvs)
+        return bret
 
     def isfile(self, path: str, **kwargs: Any) -> bool:
         """
@@ -1213,7 +1264,11 @@ class PathManager:
         Returns:
             bool: true if the path is a file
         """
-        return self.__get_path_handler(path)._isfile(path, **kwargs)  # type: ignore
+        handler = self.__get_path_handler(path)
+        bret = handler._isfile(path, **kwargs)  # type: ignore
+        kvs = {"op": "isfile", "path": path}
+        self.__log_tmetry_keys(handler, kvs)
+        return bret
 
     def isdir(self, path: str, **kwargs: Any) -> bool:
         """
@@ -1225,7 +1280,11 @@ class PathManager:
         Returns:
             bool: true if the path is a directory
         """
-        return self.__get_path_handler(path)._isdir(path, **kwargs)  # type: ignore
+        handler = self.__get_path_handler(path)
+        bret = handler._isdir(path, **kwargs)  # type: ignore
+        kvs = {"op": "isdir", "path": path}
+        self.__log_tmetry_keys(handler, kvs)
+        return bret
 
     def ls(self, path: str, **kwargs: Any) -> List[str]:
         """
@@ -1248,7 +1307,11 @@ class PathManager:
         Args:
             path (str): A URI supported by this PathHandler
         """
-        return self.__get_path_handler(path)._mkdirs(path, **kwargs)  # type: ignore
+        handler = self.__get_path_handler(path)
+        bret = handler._mkdirs(path, **kwargs)  # type: ignore
+        kvs = {"op": "mkdirs", "path": path}
+        self.__log_tmetry_keys(handler, kvs)
+        return bret
 
     def rm(self, path: str, **kwargs: Any) -> None:
         """
@@ -1257,7 +1320,11 @@ class PathManager:
         Args:
             path (str): A URI supported by this PathHandler
         """
-        return self.__get_path_handler(path)._rm(path, **kwargs)  # type: ignore
+        handler = self.__get_path_handler(path)
+        bret = handler._rm(path, **kwargs)  # type: ignore
+        kvs = {"op": "rm", "path": path}
+        self.__log_tmetry_keys(handler, kvs)
+        return bret
 
     def symlink(self, src_path: str, dst_path: str, **kwargs: Any) -> bool:
         """Symlink the src_path to the dst_path
@@ -1270,7 +1337,11 @@ class PathManager:
         assert self.__get_path_handler(  # type: ignore
             src_path
         ) == self.__get_path_handler(dst_path)
-        return self.__get_path_handler(src_path)._symlink(src_path, dst_path, **kwargs)
+        handler = self.__get_path_handler(src_path)
+        bret = handler._symlink(src_path, dst_path, **kwargs)  # type: ignore
+        kvs = {"op": "symlink", "path": src_path, "dst_path": dst_path}
+        self.__log_tmetry_keys(handler, kvs)
+        return bret
 
     def set_cwd(self, path: Union[str, None], **kwargs: Any) -> bool:
         """
@@ -1286,10 +1357,15 @@ class PathManager:
         """
         if path is None and self._cwd is None:
             return True
+        handler = self.__get_path_handler(path or self._cwd)
         if self.__get_path_handler(path or self._cwd)._set_cwd(path, **kwargs):  # type: ignore
             self._cwd = path
-            return True
-        return False
+            bret = True
+        else:
+            bret = False
+        kvs = {"op": "set_cwd", "path": path}
+        self.__log_tmetry_keys(handler, kvs)
+        return bret
 
     def register_handler(
         self, handler: PathHandler, allow_override: bool = True
