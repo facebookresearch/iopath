@@ -2,6 +2,7 @@
 
 from typing import Dict, Optional, TypeVar
 
+
 try:
     from tmetry.writer import TmetryWriter
     from tmetry.simpleevent import SimpleEventRecord

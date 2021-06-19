@@ -3,9 +3,9 @@
 import os
 import unittest
 import uuid
+from unittest.mock import patch
 
 from iopath.common.download import download
-from unittest.mock import patch
 
 
 class TestDownload(unittest.TestCase):

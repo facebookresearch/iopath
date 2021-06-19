@@ -2,10 +2,11 @@
 
 import os
 import unittest
+from unittest.mock import patch
 
 from iopath.common.file_io import PathManager
 from iopath.common.s3 import S3PathHandler
-from unittest.mock import patch
+
 
 try:
     import boto3

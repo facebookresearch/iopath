@@ -26,7 +26,7 @@ from urllib.parse import urlparse
 
 import portalocker  # type: ignore
 from iopath.common.download import download
-from iopath.common.event_logger import EventLogger, VTYPE
+from iopath.common.event_logger import VTYPE, EventLogger
 from iopath.common.non_blocking_io import NonBlockingIOManager
 
 

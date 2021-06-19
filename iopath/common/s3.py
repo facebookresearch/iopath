@@ -1,27 +1,16 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
 
-from functools import partial
+import datetime as dt
 import io
 import logging
 import os
 import shutil
-import datetime as dt
 import types
-from typing import (
-    IO,
-    Any,
-    Dict,
-    List,
-    Optional,
-    Tuple,
-    Union,
-)
+from functools import partial
+from typing import IO, Any, Dict, List, Optional, Tuple, Union
 
-from iopath.common.file_io import (
-    file_lock,
-    get_cache_dir,
-    PathHandler,
-)
+from iopath.common.file_io import PathHandler, file_lock, get_cache_dir
+
 
 try:
     # Needed for S3 PathHandler
