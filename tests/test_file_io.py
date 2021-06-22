@@ -24,7 +24,6 @@ from iopath.common.file_io import (
 # from iopath.common.event_logger import EventLogger
 
 
-
 # @patch("iopath.common.event_logger.EventLogger.log_event", side_effect=log_event_mock)
 class TestNativeIO(unittest.TestCase):
 

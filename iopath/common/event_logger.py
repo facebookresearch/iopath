@@ -6,11 +6,13 @@ from typing import Dict, Optional, TypeVar
 try:
     from tmetry.writer import TmetryWriter
     from tmetry.simpleevent import SimpleEventRecord
+
     b_tmetry_available = True
 except ImportError:
     b_tmetry_available = False
 
 VTYPE = TypeVar("T", str, int, bool, float)
+
 
 class EventLogger:
     """

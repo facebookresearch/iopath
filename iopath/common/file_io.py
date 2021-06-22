@@ -1009,14 +1009,11 @@ class PathManager:
             file: a file-like object.
         """
         handler = self.__get_path_handler(path)
-        bret = handler._open(  # type: ignore
-            path, mode, buffering=buffering, **kwargs
-        )
+        bret = handler._open(path, mode, buffering=buffering, **kwargs)  # type: ignore
 
         kvs = self.__get_open_keys(path, mode, buffering)
         self.__log_tmetry_keys(handler, kvs)
         return bret
-
 
     # NOTE: This feature is only implemented for `NativePathHandler` and can
     # currently only be used in write mode.
@@ -1146,9 +1143,7 @@ class PathManager:
             src_path
         ) == self.__get_path_handler(dst_path)
         handler = self.__get_path_handler(src_path)
-        bret = handler._copy(
-            src_path, dst_path, overwrite, **kwargs
-        )
+        bret = handler._copy(src_path, dst_path, overwrite, **kwargs)
         kvs = {"op": "copy", "path": src_path, "dst_path": dst_path}
         self.__log_tmetry_keys(handler, kvs)
         return bret
@@ -1176,7 +1171,7 @@ class PathManager:
             dst_path
         ), "Src and dest paths must be supported by the same path handler."
         handler = self.__get_path_handler(src_path)
-        bret =  handler._mv(src_path, dst_path, **kwargs)
+        bret = handler._mv(src_path, dst_path, **kwargs)
         kvs = {"op": "mv", "path": src_path, "dst_path": dst_path}
         self.__log_tmetry_keys(handler, kvs)
         return bret
@@ -1230,7 +1225,7 @@ class PathManager:
             "op": "copy_from_local",
             "path": local_path,
             "dst_path": dst_path,
-            "overwrite": overwrite
+            "overwrite": overwrite,
         }
         bret = handler._copy_from_local(
             local_path=local_path, dst_path=dst_path, overwrite=overwrite, **kwargs

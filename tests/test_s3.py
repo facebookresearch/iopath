@@ -33,7 +33,9 @@ class TestsS3(unittest.TestCase):
     def setUpClass(cls):
         # NOTE: user should change this location.
         cls.s3_bucket = "TEST_BUCKET_NAME_REPLACE_ME"
-        cls.s3_rel_path = os.path.expandvars("users/$USER/private/home/$USER/.fairseq/test_s3_pathhandler")
+        cls.s3_rel_path = os.path.expandvars(
+            "users/$USER/private/home/$USER/.fairseq/test_s3_pathhandler"
+        )
         cls.s3_full_path = "s3://" + cls.s3_bucket + "/" + cls.s3_rel_path
         cls.s3_pathhandler = S3PathHandler()
         cls.pathmanager = PathManager()
@@ -58,10 +60,18 @@ class TestsS3(unittest.TestCase):
         # Delete all files
         cls.s3_pathhandler._rm("/".join([cls.s3_full_path, "dir1", "f1_write_string"]))
         cls.s3_pathhandler._rm("/".join([cls.s3_full_path, "dir1", "f2_write_bytes"]))
-        cls.s3_pathhandler._rm("/".join([cls.s3_full_path, "dir2", "f1_write_string_from_local"]))
-        cls.s3_pathhandler._rm("/".join([cls.s3_full_path, "dir2", "f2_write_bytes_from_local"]))
-        cls.s3_pathhandler._rm("/".join([cls.s3_full_path, "dir2", "f3_write_string_from_local"]))
-        cls.s3_pathhandler._rm("/".join([cls.s3_full_path, "dir2", "f4_write_bytes_from_local"]))
+        cls.s3_pathhandler._rm(
+            "/".join([cls.s3_full_path, "dir2", "f1_write_string_from_local"])
+        )
+        cls.s3_pathhandler._rm(
+            "/".join([cls.s3_full_path, "dir2", "f2_write_bytes_from_local"])
+        )
+        cls.s3_pathhandler._rm(
+            "/".join([cls.s3_full_path, "dir2", "f3_write_string_from_local"])
+        )
+        cls.s3_pathhandler._rm(
+            "/".join([cls.s3_full_path, "dir2", "f4_write_bytes_from_local"])
+        )
 
         # Delete all directories.
         cls.s3_pathhandler._rm("/".join([cls.s3_full_path, "dir3", "dir4/"]))
@@ -136,13 +146,19 @@ class TestsS3(unittest.TestCase):
     #############################################
     @unittest.skipIf(not s3_auth, skip_s3_auth_required_tests_message)
     def test_04_open_write_mode(self):
-        with self.s3_pathhandler._open("/".join([self.s3_full_path, "dir1", "f1_write_string"]), 'w') as f:
+        with self.s3_pathhandler._open(
+            "/".join([self.s3_full_path, "dir1", "f1_write_string"]), "w"
+        ) as f:
             f.write("This is a test of writing a string.")
 
-        with self.s3_pathhandler._open("/".join([self.s3_full_path, "dir1", "f2_write_bytes"]), 'wb') as f:
+        with self.s3_pathhandler._open(
+            "/".join([self.s3_full_path, "dir1", "f2_write_bytes"]), "wb"
+        ) as f:
             f.write(b"This is a test of writing bytes.")
 
-        with self.s3_pathhandler._open("/".join([self.s3_full_path, "dir1", "f1_write_string"]), 'w') as f:
+        with self.s3_pathhandler._open(
+            "/".join([self.s3_full_path, "dir1", "f1_write_string"]), "w"
+        ) as f:
             f.write("This is a test of overwriting a string.")
 
     #############################################
@@ -152,17 +168,15 @@ class TestsS3(unittest.TestCase):
     #############################################
     @unittest.skipIf(not s3_auth, skip_s3_auth_required_tests_message)
     def test_05_open_read_mode(self):
-        with self.s3_pathhandler._open("/".join([self.s3_full_path, "dir1", "f1_write_string"]), 'r') as f:
-            self.assertEqual(
-                f.read(),
-                "This is a test of overwriting a string."
-            )
+        with self.s3_pathhandler._open(
+            "/".join([self.s3_full_path, "dir1", "f1_write_string"]), "r"
+        ) as f:
+            self.assertEqual(f.read(), "This is a test of overwriting a string.")
 
-        with self.s3_pathhandler._open("/".join([self.s3_full_path, "dir1", "f2_write_bytes"]), 'rb') as f:
-            self.assertEqual(
-                f.read(),
-                b"This is a test of writing bytes."
-            )
+        with self.s3_pathhandler._open(
+            "/".join([self.s3_full_path, "dir1", "f2_write_bytes"]), "rb"
+        ) as f:
+            self.assertEqual(f.read(), b"This is a test of writing bytes.")
 
     #############################################
     # isdir / isfile / exists
@@ -173,35 +187,65 @@ class TestsS3(unittest.TestCase):
     @unittest.skipIf(not s3_auth, skip_s3_auth_required_tests_message)
     def test_06_exists(self):
         # Path does not exist (if file)
-        self.assertFalse(self.s3_pathhandler._exists("/".join([self.s3_full_path, "dir1", "FAIL"])))
+        self.assertFalse(
+            self.s3_pathhandler._exists("/".join([self.s3_full_path, "dir1", "FAIL"]))
+        )
         # Path does not exist (if dir)
-        self.assertFalse(self.s3_pathhandler._exists("/".join([self.s3_full_path, "FAIL/"])))
+        self.assertFalse(
+            self.s3_pathhandler._exists("/".join([self.s3_full_path, "FAIL/"]))
+        )
         # Path exists (is file)
-        self.assertTrue(self.s3_pathhandler._exists("/".join([self.s3_full_path, "dir1", "f1_write_string"])))
+        self.assertTrue(
+            self.s3_pathhandler._exists(
+                "/".join([self.s3_full_path, "dir1", "f1_write_string"])
+            )
+        )
         # Path exists (is dir)
-        self.assertTrue(self.s3_pathhandler._exists("/".join([self.s3_full_path, "dir1/"])))
+        self.assertTrue(
+            self.s3_pathhandler._exists("/".join([self.s3_full_path, "dir1/"]))
+        )
 
     @unittest.skipIf(not s3_auth, skip_s3_auth_required_tests_message)
     def test_07_isdir(self):
         # Path does not exist (if file)
-        self.assertFalse(self.s3_pathhandler._isdir("/".join([self.s3_full_path, "dir1", "FAIL"])))
+        self.assertFalse(
+            self.s3_pathhandler._isdir("/".join([self.s3_full_path, "dir1", "FAIL"]))
+        )
         # Path does not exist (if dir)
-        self.assertFalse(self.s3_pathhandler._isdir("/".join([self.s3_full_path, "FAIL/"])))
+        self.assertFalse(
+            self.s3_pathhandler._isdir("/".join([self.s3_full_path, "FAIL/"]))
+        )
         # Path exists (is file)
-        self.assertFalse(self.s3_pathhandler._isdir("/".join([self.s3_full_path, "dir1", "f1_write_string"])))
+        self.assertFalse(
+            self.s3_pathhandler._isdir(
+                "/".join([self.s3_full_path, "dir1", "f1_write_string"])
+            )
+        )
         # Path exists (is dir)
-        self.assertTrue(self.s3_pathhandler._isdir("/".join([self.s3_full_path, "dir1/"])))
+        self.assertTrue(
+            self.s3_pathhandler._isdir("/".join([self.s3_full_path, "dir1/"]))
+        )
 
     @unittest.skipIf(not s3_auth, skip_s3_auth_required_tests_message)
     def test_08_isfile(self):
         # Path does not exist (if file)
-        self.assertFalse(self.s3_pathhandler._isfile("/".join([self.s3_full_path, "dir1", "FAIL"])))
+        self.assertFalse(
+            self.s3_pathhandler._isfile("/".join([self.s3_full_path, "dir1", "FAIL"]))
+        )
         # Path does not exist (if dir)
-        self.assertFalse(self.s3_pathhandler._isfile("/".join([self.s3_full_path, "FAIL/"])))
+        self.assertFalse(
+            self.s3_pathhandler._isfile("/".join([self.s3_full_path, "FAIL/"]))
+        )
         # Path exists (is file)
-        self.assertTrue(self.s3_pathhandler._isfile("/".join([self.s3_full_path, "dir1", "f1_write_string"])))
+        self.assertTrue(
+            self.s3_pathhandler._isfile(
+                "/".join([self.s3_full_path, "dir1", "f1_write_string"])
+            )
+        )
         # Path exists (is dir)
-        self.assertFalse(self.s3_pathhandler._isfile("/".join([self.s3_full_path, "dir1/"])))
+        self.assertFalse(
+            self.s3_pathhandler._isfile("/".join([self.s3_full_path, "dir1/"]))
+        )
 
     #############################################
     # copy
@@ -212,7 +256,7 @@ class TestsS3(unittest.TestCase):
         self.assertTrue(
             self.s3_pathhandler._copy(
                 "/".join([self.s3_full_path, "dir1", "f1_write_string"]),
-                "/".join([self.s3_full_path, "dir2", "f3_write_string"])
+                "/".join([self.s3_full_path, "dir2", "f3_write_string"]),
             )
         )
 
@@ -223,22 +267,28 @@ class TestsS3(unittest.TestCase):
     @unittest.skipIf(not s3_auth, skip_s3_auth_required_tests_message)
     def test_10_ls(self):
         # Path does not exist (if file)
-        self.assertEqual([], self.s3_pathhandler._ls("/".join([self.s3_full_path, "dir1", "FAIL"])))
+        self.assertEqual(
+            [], self.s3_pathhandler._ls("/".join([self.s3_full_path, "dir1", "FAIL"]))
+        )
         # Path does not exist (if dir)
-        self.assertEqual([], self.s3_pathhandler._ls("/".join([self.s3_full_path, "FAIL/"])))
+        self.assertEqual(
+            [], self.s3_pathhandler._ls("/".join([self.s3_full_path, "FAIL/"]))
+        )
         # Path exists (is file)
         self.assertEqual(
             ["/".join([self.s3_rel_path, "dir1", "f1_write_string"])],
-            self.s3_pathhandler._ls("/".join([self.s3_full_path, "dir1", "f1_write_string"]))
+            self.s3_pathhandler._ls(
+                "/".join([self.s3_full_path, "dir1", "f1_write_string"])
+            ),
         )
         # Path exists (is dir)
         self.assertEqual(
             {
                 "/".join([self.s3_rel_path, "dir1/"]),
                 "/".join([self.s3_rel_path, "dir1", "f1_write_string"]),
-                "/".join([self.s3_rel_path, "dir1", "f2_write_bytes"])
+                "/".join([self.s3_rel_path, "dir1", "f2_write_bytes"]),
             },
-            set(self.s3_pathhandler._ls("/".join([self.s3_full_path, "dir1/"])))
+            set(self.s3_pathhandler._ls("/".join([self.s3_full_path, "dir1/"]))),
         )
 
     #############################################
@@ -271,16 +321,10 @@ class TestsS3(unittest.TestCase):
         local_path_f1 = self.s3_pathhandler._get_local_path(s3_path_f1)
         local_path_f2 = self.s3_pathhandler._get_local_path(s3_path_f2)
 
-        with open(local_path_f1, 'r') as f:
-            self.assertEqual(
-                f.read(),
-                "This is a test of overwriting a string."
-            )
-        with open(local_path_f2, 'rb') as f:
-            self.assertEqual(
-                f.read(),
-                b"This is a test of writing bytes."
-            )
+        with open(local_path_f1, "r") as f:
+            self.assertEqual(f.read(), "This is a test of overwriting a string.")
+        with open(local_path_f2, "rb") as f:
+            self.assertEqual(f.read(), b"This is a test of writing bytes.")
 
     @unittest.skipIf(not s3_auth, skip_s3_auth_required_tests_message)
     def test_13_get_local_path_idempotent(self):
@@ -291,15 +335,14 @@ class TestsS3(unittest.TestCase):
         s3_path_f1 = "/".join([self.s3_full_path, "dir1", "f1_write_string"])
 
         REPEATS = 3
-        local_paths = [self.s3_pathhandler._get_local_path(s3_path_f1) for _ in range(REPEATS)]
+        local_paths = [
+            self.s3_pathhandler._get_local_path(s3_path_f1) for _ in range(REPEATS)
+        ]
         for local_path in local_paths[1:]:
             self.assertEqual(local_path, local_paths[0])
 
-        with open(local_paths[0], 'r') as f:
-            self.assertEqual(
-                f.read(),
-                "This is a test of overwriting a string."
-            )
+        with open(local_paths[0], "r") as f:
+            self.assertEqual(f.read(), "This is a test of overwriting a string.")
 
     ##############################################
     # copy_from_local
@@ -314,11 +357,19 @@ class TestsS3(unittest.TestCase):
         local_path_f1 = self.s3_pathhandler._get_local_path(s3_src_path_f1)
         local_path_f2 = self.s3_pathhandler._get_local_path(s3_src_path_f2)
 
-        s3_dst_path_f1 = "/".join([self.s3_full_path, "dir2", "f1_write_string_from_local"])
-        s3_dst_path_f2 = "/".join([self.s3_full_path, "dir2", "f2_write_bytes_from_local"])
+        s3_dst_path_f1 = "/".join(
+            [self.s3_full_path, "dir2", "f1_write_string_from_local"]
+        )
+        s3_dst_path_f2 = "/".join(
+            [self.s3_full_path, "dir2", "f2_write_bytes_from_local"]
+        )
 
-        self.assertTrue(self.s3_pathhandler._copy_from_local(local_path_f1, s3_dst_path_f1))
-        self.assertTrue(self.s3_pathhandler._copy_from_local(local_path_f2, s3_dst_path_f2))
+        self.assertTrue(
+            self.s3_pathhandler._copy_from_local(local_path_f1, s3_dst_path_f1)
+        )
+        self.assertTrue(
+            self.s3_pathhandler._copy_from_local(local_path_f2, s3_dst_path_f2)
+        )
 
     #############################################
     # symlink
@@ -327,7 +378,9 @@ class TestsS3(unittest.TestCase):
     @unittest.skipIf(not s3_auth, skip_s3_auth_required_tests_message)
     def test_15_symlink(self):
         s3_src_path_f1 = "/".join([self.s3_full_path, "dir1", "f1_write_string"])
-        s3_dst_path_f1 = "/".join([self.s3_full_path, "dir2", "f1_write_string_symlink"])
+        s3_dst_path_f1 = "/".join(
+            [self.s3_full_path, "dir2", "f1_write_string_symlink"]
+        )
         with self.assertRaises(NotImplementedError):
             self.s3_pathhandler._symlink(s3_src_path_f1, s3_dst_path_f1)
 
@@ -340,5 +393,7 @@ class TestsS3(unittest.TestCase):
         # Path exists (is file)
         self.assertEqual(
             ["/".join([self.s3_rel_path, "dir1", "f1_write_string"])],
-            self.pathmanager.ls("/".join([self.s3_full_path, "dir1", "f1_write_string"]))
+            self.pathmanager.ls(
+                "/".join([self.s3_full_path, "dir1", "f1_write_string"])
+            ),
         )
