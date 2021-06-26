@@ -22,6 +22,13 @@ class EventLogger:
     """
 
     DEFAULT_TOPIC = "iopath_tmetry"
+    OP_KEY = "op"
+
+    # Interval after which event is logged to backend.
+    SAMPLING_PERIOD = 10
+
+    # Map to keep track of sample count per operation.
+    sample_counts = {}
 
     def __init__(self, *args, **kwargs):
         if b_tmetry_available:
@@ -41,8 +48,40 @@ class EventLogger:
         if b_tmetry_available:
             self._evt.set_keys(kvs)
 
+    def _sample_record(self) -> bool:
+        """
+        Samples the current event and logs only when the count
+        reaches logging interval.
+
+        Returns:
+            True: if this sample should be logged.
+            False: otherwise.
+        """
+        evt_op = self._evt.get(self.OP_KEY)
+        if evt_op is None:
+            # No op is set. Let's log it.
+            return True
+
+        if evt_op not in self.sample_counts:
+            self.sample_counts[evt_op] = 1
+            return True
+
+        self.sample_counts[evt_op] += 1
+        if self.sample_counts[evt_op] > self.SAMPLING_PERIOD:
+            # Let's log this and reset sanpling counter.
+            self.sample_counts[evt_op] = 1
+            return True
+
+        # Skip this sample.
+        return False
+
     def log_event(self, topic: Optional[str] = None):
         if b_tmetry_available:
+
+            # Sample the current event.
+            if not self._sample_record():
+                return
+
             if topic is None:
                 topic = self.DEFAULT_TOPIC
 
