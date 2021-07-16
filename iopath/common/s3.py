@@ -7,6 +7,7 @@ import os
 import shutil
 import types
 from functools import partial
+from datetime import datetime, timedelta
 from typing import IO, Any, Dict, List, Optional, Tuple, Union
 
 from iopath.common.file_io import PathHandler, file_lock, get_cache_dir
@@ -553,3 +554,141 @@ class S3PathHandler(PathHandler):
             raise OSError(
                 f"Error in rm path {path} - " f"{type(e).__name__}: {e}"
             ) from e
+
+
+class S3ChunkReadIO(io.BufferedIOBase):
+    DEFAULT_CHUNK_SIZE = 50 * 1024 * 1024  # 50MB
+
+    def __init__(
+        self,
+        client,
+        bucket: str,
+        key: int,
+        chunk_size: int = DEFAULT_CHUNK_SIZE,
+        timeout: Optional[timedelta] = None,
+    ):
+        self.client = client
+        self.bucket = bucket
+        self.key = key
+        self.timeout = timeout.total_seconds() if timeout is not None else None
+        self.chunk_size = chunk_size
+        self.offset = 0
+
+    @property
+    def name(self) -> str:
+        return self.path
+
+    def seekable(self) -> bool:
+        """
+        Return a bool indicating whether object supports random access.
+
+        If False, seek(), tell() and truncate() will raise OSError.
+        This method may need to do a test seek().
+        """
+        return True
+
+    def readable(self) -> bool:
+        """
+        Return a bool indicating whether object was opened for reading.
+
+        If False, read() will raise OSError.
+        """
+        return True
+
+    def writable(self) -> bool:
+        """
+        Return a bool indicating whether object was opened for writing.
+
+        If False, write() and truncate() will raise OSError.
+        """
+        return False
+
+    def fileno(self) -> int:
+        raise AttributeError()
+
+    def seek(self, offset: int, whence: int = 0) -> int:
+        """
+        Change stream position.
+
+        Change the stream position to byte offset offset. Argument offset is
+        interpreted relative to the position indicated by whence.  Values
+        for whence are ints:
+
+        * 0 -- start of stream (the default); offset should be zero or positive
+        * 1 -- current stream position; offset may be negative
+        * 2 -- end of stream; offset is usually negative
+        Some operating systems / file systems could provide additional values.
+
+        Return an int indicating the new absolute position.
+        """
+        if whence == 0:
+            assert offset >= 0
+            self.offset = offset
+        elif whence == 1:
+            assert offset + self.offset >= 0
+            self.offset += offset
+        elif whence == 2:
+            self.offset = self.length + offset
+        return self.offset
+
+    def tell(self) -> int:
+        """Return an int indicating the current stream position."""
+        return self.offset
+
+    def truncate(self, size: Optional[int] = None) -> int:
+        """
+        Truncate file to size bytes.
+
+        Size defaults to the current IO position as reported by tell().  Return
+
+        the new size.
+        """
+        raise OSError("can't truncate readonly stream")
+
+    def write(self, b: Union[bytes, bytearray]) -> Optional[int]:
+        """
+        Write bytes b to in-memory buffer, return number written.
+        """
+        raise OSError("can't write to readonly stream")
+
+    def close(self) -> None:
+        """
+        noop
+        """
+        pass
+
+    def read(self, size: int = -1) -> bytes:
+        """
+        Read and return up to size bytes. If the argument is omitted, None, or negative,
+        data is read and returned until EOF is reached. An empty bytes object is
+        returned if the stream is already at EOF.
+        """
+        if size < 0:
+            size = None
+
+        obj = self.client.get_object(
+            Bucket=self.bucket,
+            Key=self.key,
+            Range=f"bytes={self.offset}-{(self.offset + size - 1) if size is not None else ''}"
+        )
+
+        streaming_body = obj["Body"]
+
+        if self.timeout is not None:
+            streaming_body.set_socket_timeout(self.timeout)
+
+        ret = bytearray()
+
+        for chunk in streaming_body.iter_chunks(chunk_size=self.chunk_size):
+            ret += chunk
+
+        streaming_body.close()
+
+        self.offset += len(ret)
+        return bytes(ret)
+
+    def read1(self, size: int = -1) -> bytes:
+        return self.read(size)
+
+    def _read_chunk_to_buffer(self, offset: int, num_bytes: int) -> int:
+        raise NotImplementedError

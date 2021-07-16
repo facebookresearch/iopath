@@ -5,7 +5,7 @@ import unittest
 from unittest.mock import patch
 
 from iopath.common.file_io import PathManager
-from iopath.common.s3 import S3PathHandler
+from iopath.common.s3 import S3ChunkReadIO, S3PathHandler
 
 
 try:
@@ -72,6 +72,7 @@ class TestsS3(unittest.TestCase):
         cls.s3_pathhandler._rm(
             "/".join([cls.s3_full_path, "dir2", "f4_write_bytes_from_local"])
         )
+        cls.s3_pathhandler._rm("/".join([cls.s3_full_path, "dir1", "alphabet"]))
 
         # Delete all directories.
         cls.s3_pathhandler._rm("/".join([cls.s3_full_path, "dir3", "dir4/"]))
@@ -397,3 +398,26 @@ class TestsS3(unittest.TestCase):
                 "/".join([self.s3_full_path, "dir1", "f1_write_string"])
             ),
         )
+
+    @unittest.skipIf(not s3_auth, skip_s3_auth_required_tests_message)
+    def test_17_chunk_reading(self):
+        with self.s3_pathhandler._open(
+            "/".join([self.s3_full_path, "dir1", "alphabet"]), "w"
+        ) as f:
+            f.write("abcdefghijklmnopqrstuvwxyz")
+
+        session = boto3.Session()
+        client = session.client("s3")
+
+        reader = S3ChunkReadIO(
+            client,
+            bucket=self.s3_bucket,
+            key="/".join([self.s3_rel_path, "dir1", "alphabet"]),
+            chunk_size=6
+        )
+
+        reader.seek(2)
+
+        self.assertEqual(reader.read(4).decode("utf-8"), "cdef")
+        self.assertEqual(reader.read(13).decode("utf-8"), "ghijklmnopqrs")
+        self.assertEqual(reader.read().decode("utf-8"), "tuvwxyz")
