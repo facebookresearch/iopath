@@ -1203,7 +1203,7 @@ class PathManager:
 
     def copy_from_local(
         self, local_path: str, dst_path: str, overwrite: bool = False, **kwargs: Any
-    ) -> None:
+    ) -> bool:
         """
         Copies a local file to the specified URI.
 
