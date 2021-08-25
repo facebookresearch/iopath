@@ -934,6 +934,7 @@ class PathManager:
         """
         if self._enable_logging:
             handler.add_keys(kvs)
+            handler.add_key("handler",type(handler).__name__)
             try:
                 handler.log_event()
             except Exception:
@@ -1009,6 +1010,9 @@ class PathManager:
             file: a file-like object.
         """
         handler = self.__get_path_handler(path)
+        # pass enable mode to handler that will be logging
+        # read, write operations separately.
+        handler.set_logging(self._enable_logging)
         bret = handler._open(path, mode, buffering=buffering, **kwargs)  # type: ignore
 
         kvs = self.__get_open_keys(path, mode, buffering)

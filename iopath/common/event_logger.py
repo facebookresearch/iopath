@@ -34,6 +34,7 @@ class EventLogger:
         if b_tmetry_available:
             self._writers = []
             self._evt = SimpleEventRecord()
+            self._enabled = True
 
     def add_writer(self, writer):
         if b_tmetry_available:
@@ -75,8 +76,14 @@ class EventLogger:
         # Skip this sample.
         return False
 
+    def set_logging(self, enable: bool) -> None:
+        self._enabled = enable
+
+    def is_logging_enabled(self) -> bool:
+        return self._enabled
+
     def log_event(self, topic: Optional[str] = None):
-        if b_tmetry_available:
+        if b_tmetry_available and self._enabled:
 
             # Sample the current event.
             if not self._sample_record():
@@ -87,5 +94,5 @@ class EventLogger:
 
             for writer in self._writers:
                 writer.writeRecord(topic, self._evt)
-            del self._evt
-            self._evt = SimpleEventRecord()
+        del self._evt
+        self._evt = SimpleEventRecord()
