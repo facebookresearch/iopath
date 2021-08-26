@@ -151,6 +151,7 @@ class PathHandler(EventLogger):
     """
 
     _strict_kwargs_check = True
+    _resource_path_cache = {}
 
     def __init__(
         self,
@@ -519,6 +520,36 @@ class PathHandler(EventLogger):
             path (str): Full path with the cwd attached.
         """
         return path
+
+    def _add_path_to_cache(self, remote_path: str, local_path: str) -> None:
+        """
+        Adds remote path and local path to the cache. The subsequent run can find out if the resource requested already cached to the local disk.
+
+        Args:
+             remote_path: the original resource path.
+             local_path: the native path to the resource cached to disk.
+        """
+        if remote_path and local_path:
+             self._resource_path_cache[remote_path] = local_path
+        else:
+            logger = logging.getLogger(__name__)
+            if not remote_path:
+                logger.warning("The remote path is empty so can not be added to the cache.")
+            else:
+                logger.warning("The local path is empty so can not be added to the cache.")
+
+
+    def _get_from_cache(self, remote_path: str) -> str:
+        """
+        Returns the native path for the original resource path.
+
+        Args:
+            remote_path: the original resource path.
+
+        Returns:
+            local_path (str): The native path where the requested resource was cached.
+        """
+        return self._resource_path_cache.get(remote_path, None)
 
 
 class NativePathHandler(PathHandler):
