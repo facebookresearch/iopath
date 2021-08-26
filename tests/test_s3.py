@@ -1,6 +1,7 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
 
 import os
+import io
 import unittest
 from unittest.mock import patch
 
@@ -73,6 +74,7 @@ class TestsS3(unittest.TestCase):
             "/".join([cls.s3_full_path, "dir2", "f4_write_bytes_from_local"])
         )
         cls.s3_pathhandler._rm("/".join([cls.s3_full_path, "dir1", "alphabet"]))
+        cls.s3_pathhandler._rm("/".join([cls.s3_full_path, "dir1", "large_text"]))
 
         # Delete all directories.
         cls.s3_pathhandler._rm("/".join([cls.s3_full_path, "dir3", "dir4/"]))
@@ -421,3 +423,48 @@ class TestsS3(unittest.TestCase):
         self.assertEqual(reader.read(4).decode("utf-8"), "cdef")
         self.assertEqual(reader.read(13).decode("utf-8"), "ghijklmnopqrs")
         self.assertEqual(reader.read().decode("utf-8"), "tuvwxyz")
+
+    @unittest.skipIf(not s3_auth, skip_s3_auth_required_tests_message)
+    def test_19_test_chunk_read_text(self):
+        large_text = "HELLO!\nTHIS IS A TEST\nTHANKS!" * 10 * 1024
+        with self.s3_pathhandler._open(
+            "/".join([self.s3_full_path, "dir1", "large_text"]), "w"
+        ) as wf:
+            wf.write(large_text)
+            wf.close()
+
+        for test_chunk_size in [4 * 1024, 8 * 1024, 12 * 1024, 16 * 1024, 1024 * 1024]:
+            with self.s3_pathhandler._open(
+                "/".join([self.s3_full_path, "dir1", "large_text"]), "r", read_chunk_size=test_chunk_size
+            ) as rf:
+                delimiter = "\n"
+                expected_lines = large_text.split(delimiter)[:-1]
+                for line in expected_lines:
+                    s = rf.readline()
+                    self.maxDiff = None
+                    self.assertEqual(s, line + delimiter)
+                rf.close()
+
+    @unittest.skipIf(not s3_auth, skip_s3_auth_required_tests_message)
+    def test_20_test_chunk_read_binary(self):
+        large_text = "HELLO!\nTHIS IS A TEST\nTHANKS!" * 10 * 1024
+        with self.s3_pathhandler._open(
+            "/".join([self.s3_full_path, "dir1", "large_text_binary"]), "wb"
+        ) as wf:
+            wf.write(large_text.encode())
+            wf.close()
+
+        for test_chunk_size in [4 * 1024, 8 * 1024, 12 * 1024, 16 * 1024, 1024 * 1024]:
+            buffer = io.BytesIO()
+            with self.s3_pathhandler._open(
+                "/".join([self.s3_full_path, "dir1", "large_text_binary"]), "rb", read_chunk_size=test_chunk_size
+            ) as rf:
+                while True:
+                    chunk = rf.read(6 * 1024)
+                    if len(chunk) > 0:
+                        buffer.write(chunk)
+                    else:
+                        break
+                self.assertEqual(large_text.encode(), buffer.getvalue())
+                rf.close()
+

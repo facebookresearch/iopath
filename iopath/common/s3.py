@@ -6,8 +6,8 @@ import logging
 import os
 import shutil
 import types
-from functools import partial
 from datetime import datetime, timedelta
+from functools import partial
 from typing import IO, Any, Dict, List, Optional, Tuple, Union
 
 from iopath.common.file_io import PathHandler, file_lock, get_cache_dir
@@ -79,6 +79,7 @@ class S3PathHandler(PathHandler):
 
     # Disable failures if not all args are specified.
     _strict_kwargs_check = False
+
 
     S3_PREFIX = "s3://"
     CACHE_SUBDIR_NAME = "s3_cache"
@@ -321,6 +322,7 @@ class S3PathHandler(PathHandler):
         encoding: Optional[str] = None,
         errors: Optional[str] = None,
         newline: Optional[str] = None,
+        read_chunk_size: Optional[int] = None,
         **kwargs: Any,
     ) -> Union[IO[str], IO[bytes]]:
         """
@@ -345,32 +347,46 @@ class S3PathHandler(PathHandler):
         # AWS methods download_fileobj() and upload_fileobj()
         # both expect binary file-like objects.
         if "r" in mode:
-            # 1. Download into io.BytesIO.
-            # (binary format is required by download_fileobj.)
-            buffer = io.BytesIO()
-            try:
-                # NOTE: Will download entire file!  Further optimization to
-                # only read a portion of the file could be implemented here.
-                # NOTE: We download into an in-memory buffer.  If downloading to
-                # filesystem is desirable, use _get_local_path().
-                client.download_fileobj(
-                    bucket, s3_path, buffer, Config=self.transfer_config
-                )
-            except botocore.exceptions.ClientError as e:
-                raise OSError(
-                    f"Error in making s3 client for bucekt {bucket}"
-                    f"{type(e).__name__}: {e}"
-                ) from e
+            if read_chunk_size is None:
+                # 1. Download into io.BytesIO.
+                # (binary format is required by download_fileobj.)
+                buffer = io.BytesIO()
+                try:
+                    # NOTE: Will download entire file!  Further optimization to
+                    # only read a portion of the file could be implemented here.
+                    # NOTE: We download into an in-memory buffer.  If downloading to
+                    # filesystem is desirable, use _get_local_path().
+                    client.download_fileobj(
+                        bucket, s3_path, buffer, Config=self.transfer_config
+                    )
+                except botocore.exceptions.ClientError as e:
+                    raise OSError(
+                        f"Error in making s3 client for bucekt {bucket}"
+                        f"{type(e).__name__}: {e}"
+                    ) from e
 
-            # 2. Set file-pointer to beginning of file.
-            buffer.seek(0)
+                # 2. Set file-pointer to beginning of file.
+                buffer.seek(0)
+            else:
+                buffer = S3ChunkReadIO(client, bucket, s3_path, read_chunk_size)
+            self.length = client.get_object(Bucket= bucket, Key= s3_path)["ContentLength"]
 
             # 3. Use convenient wrapper to make object look like StringIO,
             # if user wants non-binary.
-            if "b" not in mode:
-                buffer = io.TextIOWrapper(buffer, encoding="utf-8")
+            encoding=None
 
-            return buffer
+            if "b" not in mode:
+                encoding="utf-8"
+                return io.TextIOWrapper(
+                    buffer,
+                    write_through=True,
+                    encoding=encoding,
+                    errors=None,
+                    newline=None,
+                    line_buffering=False
+                )
+            else:
+                return buffer
 
         elif "w" in mode:
             # 1. For writing, we give the user io.BytesIO or io.StringIO.
@@ -573,6 +589,9 @@ class S3ChunkReadIO(io.BufferedIOBase):
         self.timeout = timeout.total_seconds() if timeout is not None else None
         self.chunk_size = chunk_size
         self.offset = 0
+        self.buffered_window = range(0, 0)
+        self.buffer = io.BytesIO()
+        self.length = client.get_object(Bucket=bucket, Key=key)["ContentLength"]
 
     @property
     def name(self) -> str:
@@ -657,38 +676,84 @@ class S3ChunkReadIO(io.BufferedIOBase):
         """
         pass
 
+    def read1(self, size: int = -1) -> bytes:
+        return self.read(size)
+
     def read(self, size: int = -1) -> bytes:
         """
         Read and return up to size bytes. If the argument is omitted, None, or negative,
         data is read and returned until EOF is reached. An empty bytes object is
         returned if the stream is already at EOF.
         """
-        if size < 0:
-            size = None
 
+        if size is None or size < 0:
+            size = self.length - self.offset
+
+        size = min(size, self.length - self.offset)
+
+        ret = bytearray()
+
+        if self.offset in self.buffered_window:
+            buffer_offset = self.offset - self.buffered_window.start
+            ret += self.buffer.getbuffer()[
+                buffer_offset : min(buffer_offset + size, len(self.buffered_window))
+            ]
+
+        # if we already get enough data, return
+        if len(ret) == size:
+            self.offset += len(ret)
+            return bytes(ret)
+
+        # if partial data is available in the buffer, get the remaining data from S3
+        if size - len(ret) > self.chunk_size:
+            self.offset += len(ret)
+            # For s3, range x-x means 1 byte at offset x
+            output = self._read_from_s3(range(self.offset,
+                min(self.offset + size - len(ret) - 1, self.length)))
+            self.offset += len(output)
+            return ret + output
+
+        # otherwise download the next chunk from s3, update buffer and buffered window
+        self._read_chunk_to_buffer(self.offset + len(ret))
+
+        # append the remaining data from newly downloaded buffer and return
+        ret += self.buffer.getbuffer()[0 : size - len(ret)]
+
+        assert len(ret) == size
+        self.offset += len(ret)
+        return bytes(ret)
+
+    def _read_from_s3(self, download_range: range) -> bytes:
         obj = self.client.get_object(
             Bucket=self.bucket,
             Key=self.key,
-            Range=f"bytes={self.offset}-{(self.offset + size - 1) if size is not None else ''}"
+            Range=f"bytes={download_range.start}-{download_range.stop}"
         )
-
         streaming_body = obj["Body"]
 
         if self.timeout is not None:
             streaming_body.set_socket_timeout(self.timeout)
 
         ret = bytearray()
-
         for chunk in streaming_body.iter_chunks(chunk_size=self.chunk_size):
             ret += chunk
-
         streaming_body.close()
+        return ret
 
-        self.offset += len(ret)
-        return bytes(ret)
+    def _read_chunk_to_buffer(self, start_offset: int) -> None:
+        """
+        download a chuck size of data start from start_offset into current buffer, then update
+        self.buffered_window for booking which part of data is currently buffered
+        """
+        download_range = range(
+            start_offset, min(start_offset + self.chunk_size, self.length)
+        )
+
+        ret = self._read_from_s3(download_range)
+
+        self.buffer.seek(0)
+        self.buffer.write(ret)
+        self.buffered_window = download_range
 
     def read1(self, size: int = -1) -> bytes:
         return self.read(size)
-
-    def _read_chunk_to_buffer(self, offset: int, num_bytes: int) -> int:
-        raise NotImplementedError
