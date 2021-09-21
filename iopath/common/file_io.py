@@ -1142,10 +1142,11 @@ class PathManager:
             status (bool): True on success
         """
 
-        # Copying across handlers is not supported.
-        assert self.__get_path_handler(  # type: ignore
-            src_path
-        ) == self.__get_path_handler(dst_path)
+        if self.__get_path_handler(src_path) != self.__get_path_handler(  # type: ignore
+            dst_path
+        ):
+            return self._copy_across_handlers(src_path, dst_path, overwrite, **kwargs)
+
         handler = self.__get_path_handler(src_path)
         bret = handler._copy(src_path, dst_path, overwrite, **kwargs)
         kvs = {"op": "copy", "path": src_path, "dst_path": dst_path}
@@ -1454,6 +1455,19 @@ class PathManager:
 
     def set_logging(self, enable_logging=True):
         self._enable_logging = enable_logging
+
+    def _copy_across_handlers(
+        self, src_path: str, dst_path: str, overwrite: bool, **kwargs: Any
+    ) -> bool:
+        src_handler = self.__get_path_handler(src_path)
+        assert src_handler._get_local_path is not None
+        dst_handler = self.__get_path_handler(dst_path)
+        assert dst_handler._copy_from_local is not None
+
+        local_file = src_handler._get_local_path(src_path, **kwargs)
+        return dst_handler._copy_from_local(
+            local_file, dst_path, overwrite=overwrite, **kwargs
+        )
 
 
 """

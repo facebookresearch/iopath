@@ -381,6 +381,15 @@ class TestHTTPIO(unittest.TestCase):
         f.close()
         self._pathmgr.set_strict_kwargs_checking(True)
 
+    def test_copy_across_handlers(self) -> None:
+        with tempfile.NamedTemporaryFile(delete=True) as file:
+            local_path = file.name
+        with self._patch_download():
+            self._pathmgr.copy(self._remote_uri, local_path)
+            self.assertTrue(self._pathmgr.exists(local_path))
+
+        self._pathmgr.rm(local_path)
+
 
 class TestLazyPath(unittest.TestCase):
     _pathmgr = PathManager()
