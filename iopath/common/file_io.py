@@ -277,29 +277,36 @@ class PathHandler(EventLogger):
         **kwargs: Any,
     ) -> Union[IO[str], IO[bytes]]:
         """
-        Open a stream to a URI with asynchronous permissions.
+        Open a file with asynchronous methods. `f.write()` calls will be dispatched
+        asynchronously such that the main program can continue running.
+        `f.read()` is an async method that has to run in an asyncio event loop.
 
         NOTE: Writes to the same path are serialized so they are written in
         the same order as they were called but writes to distinct paths can
         happen concurrently.
 
-        Usage (default / without callback function):
+        Usage (write, default / without callback function):
             for n in range(50):
                 results = run_a_large_task(n)
+                # `f` is a file-like object with asynchronous methods
                 with path_manager.opena(uri, "w") as f:
                     f.write(results)            # Runs in separate thread
                 # Main process returns immediately and continues to next iteration
             path_manager.async_close()
 
-        Usage (advanced / with callback function):
-            # To write local and then copy to Manifold:
+        Usage (write, advanced / with callback function):
+            # To asynchronously write to storage:
             def cb():
                 path_manager.copy_from_local(
-                    "checkpoint.pt", "manifold://path/to/bucket"
+                    "checkpoint.pt", uri
                 )
             f = pm.opena("checkpoint.pt", "wb", callback_after_file_close=cb)
             torch.save({...}, f)
             f.close()
+
+        Usage (read):
+            async def my_function():
+              return await path_manager.opena(uri, "r").read()
 
         Args:
             ...same args as `_open`...
@@ -1019,8 +1026,6 @@ class PathManager:
         self.__log_tmetry_keys(handler, kvs)
         return bret
 
-    # NOTE: This feature is only implemented for `NativePathHandler` and can
-    # currently only be used in write mode.
     def opena(
         self,
         path: str,
@@ -1030,15 +1035,15 @@ class PathManager:
         **kwargs: Any,
     ) -> Union[IO[str], IO[bytes]]:
         """
-        Open a file with asynchronous permissions. `f.write()` calls (and
-        potentially `f.read()` calls in the future) will be dispatched
+        Open a file with asynchronous methods. `f.write()` calls will be dispatched
         asynchronously such that the main program can continue running.
+        `f.read()` is an async method that has to run in an asyncio event loop.
 
         NOTE: Writes to the same path are serialized so they are written in
         the same order as they were called but writes to distinct paths can
         happen concurrently.
 
-        Usage (default / without callback function):
+        Usage (write, default / without callback function):
             for n in range(50):
                 results = run_a_large_task(n)
                 # `f` is a file-like object with asynchronous methods
@@ -1047,36 +1052,41 @@ class PathManager:
                 # Main process returns immediately and continues to next iteration
             path_manager.async_close()
 
-        Usage (advanced / with callback function):
-            # To asynchronously write to Manifold:
+        Usage (write, advanced / with callback function):
+            # To asynchronously write to storage:
             def cb():
-                path_manager.copy_from_local(
-                    "checkpoint.pt", "manifold://path/to/bucket"
-                )
+                path_manager.copy_from_local("checkpoint.pt", uri)
             f = pm.opena("checkpoint.pt", "wb", callback_after_file_close=cb)
             torch.save({...}, f)
             f.close()
 
+        Usage (read):
+            async def my_function():
+              return await path_manager.opena(uri, "r").read()
+
         Args:
             ...
-            callback_after_file_close (Callable): An optional argument that can
-                be passed to perform operations that depend on the asynchronous
-                writes being completed. The file is first written to the local
-                disk and then the callback is executed.
+            callback_after_file_close (Callable): Only used in write mode. An
+                optional argument that can be passed to perform operations that
+                depend on the asynchronous writes being completed. The file is
+                first written to the local disk and then the callback is
+                executed.
 
         Returns:
             file: a file-like object with asynchronous methods.
         """
+        if "w" in mode:
+            kwargs["callback_after_file_close"] = callback_after_file_close
+            kwargs["buffering"] = buffering
         non_blocking_io = self.__get_path_handler(path)._opena(
             path,
             mode,
-            buffering=buffering,
-            callback_after_file_close=callback_after_file_close,
             **kwargs,
         )
-        # Keep track of the path handlers where `opena` is used so that all of the
-        # threads can be properly joined on `PathManager.join`.
-        self._async_handlers.add(self.__get_path_handler(path))
+        if "w" in mode:
+            # Keep track of the path handlers where `opena` is used so that all of the
+            # threads can be properly joined on `PathManager.join`.
+            self._async_handlers.add(self.__get_path_handler(path))
         return non_blocking_io
 
     def async_join(self, *paths: str, **kwargs: Any) -> bool:
