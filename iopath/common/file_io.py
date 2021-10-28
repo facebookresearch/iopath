@@ -941,7 +941,7 @@ class PathManager:
         """
         if self._enable_logging:
             handler.add_keys(kvs)
-            handler.add_key("handler",type(handler).__name__)
+            handler.add_key("handler", type(handler).__name__)
             try:
                 handler.log_event()
             except Exception:
