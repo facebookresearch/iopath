@@ -87,6 +87,7 @@ class S3PathHandler(PathHandler):
     def __init__(
         self,
         cache_dir: Optional[str] = None,
+        profile: Optional[str] = "default",
         transfer_config_kwargs: Optional[Dict] = None,
     ):
         """
@@ -98,6 +99,7 @@ class S3PathHandler(PathHandler):
                 See https://boto3.amazonaws.com/v1/documentation/api/latest/guide/s3.html for details.
         """
         self.cache_dir = cache_dir
+        self.profile = profile
         from boto3.s3.transfer import TransferConfig
 
         self.transfer_config = TransferConfig(
@@ -131,7 +133,7 @@ class S3PathHandler(PathHandler):
         logger = logging.getLogger(__name__)
         if not hasattr(self, "client"):
             try:
-                session = boto3.Session()
+                session = boto3.Session(profile_name=self.profile)
                 self.client = session.client("s3")
             except botocore.exceptions.NoCredentialsError as e:
                 logger.error(
