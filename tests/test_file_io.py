@@ -36,7 +36,7 @@ class TestNativeIO(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls._tmpdir = tempfile.mkdtemp()
-        cls._filename = "test.txt"
+        cls._filename = "test_file_for_iopath_with_a_really_uncommon_name.txt"
         # pyre-ignore
         with open(os.path.join(cls._tmpdir, cls._filename), "w") as f:
             cls._tmpfile = f.name

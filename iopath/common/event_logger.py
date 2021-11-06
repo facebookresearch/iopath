@@ -4,8 +4,8 @@ from typing import Dict, Optional, TypeVar
 
 
 try:
-    from tmetry.writer import TmetryWriter
     from tmetry.simpleevent import SimpleEventRecord
+    from tmetry.writer import TmetryWriter
 
     b_tmetry_available = True
 except ImportError:

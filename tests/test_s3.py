@@ -1,7 +1,7 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
 
-import os
 import io
+import os
 import unittest
 from unittest.mock import patch
 
@@ -414,7 +414,7 @@ class TestsS3(unittest.TestCase):
             client,
             bucket=self.s3_bucket,
             key="/".join([self.s3_rel_path, "dir1", "alphabet"]),
-            chunk_size=6
+            chunk_size=6,
         )
 
         reader.seek(2)
@@ -434,7 +434,9 @@ class TestsS3(unittest.TestCase):
 
         for test_chunk_size in [4 * 1024, 8 * 1024, 12 * 1024, 16 * 1024, 1024 * 1024]:
             with self.s3_pathhandler._open(
-                "/".join([self.s3_full_path, "dir1", "large_text"]), "r", read_chunk_size=test_chunk_size
+                "/".join([self.s3_full_path, "dir1", "large_text"]),
+                "r",
+                read_chunk_size=test_chunk_size,
             ) as rf:
                 delimiter = "\n"
                 expected_lines = large_text.split(delimiter)[:-1]
@@ -456,7 +458,9 @@ class TestsS3(unittest.TestCase):
         for test_chunk_size in [4 * 1024, 8 * 1024, 12 * 1024, 16 * 1024, 1024 * 1024]:
             buffer = io.BytesIO()
             with self.s3_pathhandler._open(
-                "/".join([self.s3_full_path, "dir1", "large_text_binary"]), "rb", read_chunk_size=test_chunk_size
+                "/".join([self.s3_full_path, "dir1", "large_text_binary"]),
+                "rb",
+                read_chunk_size=test_chunk_size,
             ) as rf:
                 while True:
                     chunk = rf.read(6 * 1024)
@@ -466,4 +470,3 @@ class TestsS3(unittest.TestCase):
                         break
                 self.assertEqual(large_text.encode(), buffer.getvalue())
                 rf.close()
-

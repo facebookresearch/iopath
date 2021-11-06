@@ -80,7 +80,6 @@ class S3PathHandler(PathHandler):
     # Disable failures if not all args are specified.
     _strict_kwargs_check = False
 
-
     S3_PREFIX = "s3://"
     CACHE_SUBDIR_NAME = "s3_cache"
 
@@ -371,21 +370,21 @@ class S3PathHandler(PathHandler):
                 buffer.seek(0)
             else:
                 buffer = S3ChunkReadIO(client, bucket, s3_path, read_chunk_size)
-            self.length = client.get_object(Bucket= bucket, Key= s3_path)["ContentLength"]
+            self.length = client.get_object(Bucket=bucket, Key=s3_path)["ContentLength"]
 
             # 3. Use convenient wrapper to make object look like StringIO,
             # if user wants non-binary.
-            encoding=None
+            encoding = None
 
             if "b" not in mode:
-                encoding="utf-8"
+                encoding = "utf-8"
                 return io.TextIOWrapper(
                     buffer,
                     write_through=True,
                     encoding=encoding,
                     errors=None,
                     newline=None,
-                    line_buffering=False
+                    line_buffering=False,
                 )
             else:
                 return buffer
@@ -710,8 +709,9 @@ class S3ChunkReadIO(io.BufferedIOBase):
         if size - len(ret) > self.chunk_size:
             self.offset += len(ret)
             # For s3, range x-x means 1 byte at offset x
-            output = self._read_from_s3(range(self.offset,
-                min(self.offset + size - len(ret) - 1, self.length)))
+            output = self._read_from_s3(
+                range(self.offset, min(self.offset + size - len(ret) - 1, self.length))
+            )
             self.offset += len(output)
             return ret + output
 
@@ -729,7 +729,7 @@ class S3ChunkReadIO(io.BufferedIOBase):
         obj = self.client.get_object(
             Bucket=self.bucket,
             Key=self.key,
-            Range=f"bytes={download_range.start}-{download_range.stop}"
+            Range=f"bytes={download_range.start}-{download_range.stop}",
         )
         streaming_body = obj["Body"]
 
