@@ -86,7 +86,7 @@ class S3PathHandler(PathHandler):
     def __init__(
         self,
         cache_dir: Optional[str] = None,
-        profile: Optional[str] = "default",
+        profile: Optional[str] = "saml",
         transfer_config_kwargs: Optional[Dict] = None,
     ):
         """
