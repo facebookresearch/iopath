@@ -34,9 +34,8 @@ class TestsS3(unittest.TestCase):
     def setUpClass(cls):
         # NOTE: user should change this location.
         cls.s3_bucket = "TEST_BUCKET_NAME_REPLACE_ME"
-        cls.s3_rel_path = os.path.expandvars(
-            "users/$USER/private/home/$USER/.fairseq/test_s3_pathhandler"
-        )
+        # NOTE: user should change this to a valid bucket path that is accessible.
+        cls.s3_rel_path = "TEST_REL_PATH_REPLACE_ME"
         cls.s3_full_path = "s3://" + cls.s3_bucket + "/" + cls.s3_rel_path
         cls.s3_pathhandler = S3PathHandler()
         cls.pathmanager = PathManager()
