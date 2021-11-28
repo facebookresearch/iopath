@@ -323,7 +323,7 @@ class PathHandler(EventLogger):
         # Restrict mode until `NonBlockingIO` has async read feature.
         valid_modes = {"w", "a", "b"}
         if not all(m in valid_modes for m in mode):
-            raise ValueError("`opena` mode must be write or append")
+            raise ValueError(f"`opena` mode must be write or append for path {path}")
 
         # TODO: Each `PathHandler` should set its own `self._buffered`
         # parameter and pass that in here. Until then, we assume no
