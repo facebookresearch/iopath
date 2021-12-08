@@ -18,6 +18,7 @@ setup(
     python_requires=">=3.6",
     install_requires=[
         "boto3",
+        "google-cloud-storage",
         "tqdm",
         "portalocker",
         "dataclasses; python_version<'3.7'",
