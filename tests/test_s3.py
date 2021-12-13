@@ -1,7 +1,6 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
 
 import io
-import os
 import unittest
 from unittest.mock import patch
 
@@ -14,10 +13,26 @@ try:
 except ImportError:
     boto3 = None
 
+test_bucket = "TEST_BUCKET_NAME_REPLACE_ME"
+test_rel_path = "TEST_REL_PATH_REPLACE_ME"
+
+
+def test_bucket_defined():
+    return (
+        test_bucket != "TEST_BUCKET_NAME_REPLACE_ME"
+        and test_rel_path != "TEST_REL_PATH_REPLACE_ME"
+    )
+
 
 @unittest.skipIf(not boto3, "Requires boto3 install")
+@unittest.skipIf(
+    test_bucket == "TEST_BUCKET_NAME_REPLACE_ME", "Test Bucket not specified."
+)
+@unittest.skipIf(
+    test_rel_path == "TEST_REL_PATH_REPLACE_ME", "Test relative path not specified."
+)
 class TestsS3(unittest.TestCase):
-    s3_auth = True
+    s3_auth = test_bucket == test_bucket_defined()
     skip_s3_auth_required_tests_message = (
         "Provide an s3 project and bucket you are"
         + "authorised against, then set the s3_auth flag to True"
@@ -33,9 +48,9 @@ class TestsS3(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         # NOTE: user should change this location.
-        cls.s3_bucket = "TEST_BUCKET_NAME_REPLACE_ME"
+        cls.s3_bucket = test_bucket
         # NOTE: user should change this to a valid bucket path that is accessible.
-        cls.s3_rel_path = "TEST_REL_PATH_REPLACE_ME"
+        cls.s3_rel_path = test_rel_path
         cls.s3_full_path = "s3://" + cls.s3_bucket + "/" + cls.s3_rel_path
         cls.s3_pathhandler = S3PathHandler()
         cls.pathmanager = PathManager()
@@ -86,7 +101,6 @@ class TestsS3(unittest.TestCase):
     # Up here, test class attributes,
     # and helpers that don't require S3 access.
     #############################################
-
     def test_00_supported_prefixes(self):
         supported_prefixes = self.s3_pathhandler._get_supported_prefixes()
         self.assertEqual(supported_prefixes, ["s3://"])

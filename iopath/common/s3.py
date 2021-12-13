@@ -281,6 +281,11 @@ class S3PathHandler(PathHandler):
                 "S3PathHandler does not currently support uploading directories"
             )
 
+        if not overwrite and self._exists(dst_path):
+            logger = logging.getLogger(__name__)
+            logger.error("Error: Destination path {} already exists.".format(dst_path))
+            return False
+
         bucket, s3_path = self._parse_uri(dst_path)
         client = self._get_client(bucket)
         try:
@@ -422,6 +427,11 @@ class S3PathHandler(PathHandler):
             status (bool): True on success
         """
         self._check_kwargs(kwargs)
+
+        if not overwrite and self._exists(dst_path):
+            logger = logging.getLogger(__name__)
+            logger.error("Error: Destination path {} already exists.".format(dst_path))
+            return False
 
         src_bucket, src_s3_path = self._parse_uri(src_path)
         dst_bucket, dst_s3_path = self._parse_uri(dst_path)
@@ -756,6 +766,3 @@ class S3ChunkReadIO(io.BufferedIOBase):
         self.buffer.seek(0)
         self.buffer.write(ret)
         self.buffered_window = download_range
-
-    def read1(self, size: int = -1) -> bytes:
-        return self.read(size)
