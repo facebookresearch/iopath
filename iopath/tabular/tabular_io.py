@@ -1,8 +1,8 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
 
-from typing import Any, Iterable
+from typing import Any
 
-from iopath.common.file_io import PathHandler
+from iopath.common.file_io import PathHandler, TabularIO
 
 
 class TabularUriParser:
@@ -13,5 +13,5 @@ class TabularUriParser:
 class TabularPathHandler(PathHandler):
     def _opent(
         self, path: str, mode: str = "r", buffering: int = 32, **kwargs: Any
-    ) -> Iterable[Any]:
+    ) -> TabularIO:
         assert mode == "r"
