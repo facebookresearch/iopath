@@ -10,16 +10,21 @@ import tempfile
 import traceback
 import uuid
 from collections import OrderedDict
+from types import TracebackType
 from typing import (
     IO,
     Any,
     Callable,
     Dict,
     Iterable,
+    Iterator,
     List,
     MutableMapping,
     Optional,
+    Protocol,
     Set,
+    Type,
+    TypeVar,
     Union,
 )
 from urllib.parse import urlparse
@@ -143,6 +148,26 @@ class LazyPath(os.PathLike):
             return super().__str__()
 
 
+class TabularIO(Protocol):
+    """
+    Context Manager interface to be used by PathHandler methods.
+    """
+
+    def __enter__(self) -> "TabularIO":
+        ...
+
+    def __exit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> None:
+        ...
+
+    def __iter__(self) -> Iterator[Any]:
+        ...
+
+
 class PathHandler(EventLogger):
     """
     PathHandler is a base class that defines common I/O functionality for a URI
@@ -244,7 +269,7 @@ class PathHandler(EventLogger):
 
     def _opent(
         self, path: str, mode: str = "r", buffering: int = 32, **kwargs: Any
-    ) -> Iterable[Any]:
+    ) -> TabularIO:
         raise NotImplementedError()
 
     def _open(
@@ -981,7 +1006,7 @@ class PathManager:
 
     def opent(
         self, path: str, mode: str = "r", buffering: int = 32, **kwargs: Any
-    ) -> Iterable[Any]:
+    ) -> TabularIO:
         """
         Open a tabular data source. Only reading is supported.
         The opent() returns a Python iterable collection object, compared to bytes/text data with open()
@@ -993,7 +1018,7 @@ class PathManager:
             buffering (int): number of rows fetched and cached
 
         Returns:
-            An iterable collection object.
+            A TabularIO context manager object
         """
         return self.__get_path_handler(path)._opent(path, mode, buffering, **kwargs)
 
