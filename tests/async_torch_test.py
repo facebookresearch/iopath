@@ -17,6 +17,7 @@ from iopath.common.file_io import PathManager
 
 
 class Model(nn.Module):
+    # pyre-fixme[3]: Return type must be annotated.
     def __init__(self):
         super(Model, self).__init__()
         self.conv1 = nn.Conv2d(3, 6, 5)

@@ -6,6 +6,7 @@ from iopath.tabular.tabular_io import TabularPathHandler, TabularUriParser
 from .version import __version__
 
 
+# pyre-fixme[5]: Global expression must be annotated.
 __all__ = [
     "LazyPath",
     "PathManager",

@@ -97,6 +97,7 @@ def file_lock(path: str):  # type: ignore
     return portalocker.Lock(path + ".lock", timeout=3600)  # type: ignore
 
 
+# pyre-fixme[24]: Generic type `os.PathLike` expects 1 type parameter.
 class LazyPath(os.PathLike):
     """
     A path that's lazily evaluated when it's used.
@@ -131,6 +132,7 @@ class LazyPath(os.PathLike):
     # behave more like a str after evaluated
     def __getattr__(self, name: str):  # type: ignore
         if name in LazyPath.KEPT_ATTRIBUTES:
+            # pyre-fixme[16]: `PathLike` has no attribute `__getattr__`.
             return super().__getattr__(name)
         if self._value is None:
             raise AttributeError(f"Uninitialized LazyPath has no attribute: {name}.")
@@ -164,6 +166,7 @@ class TabularIO(Protocol):
     ) -> None:
         ...
 
+    # pyre-fixme[3]: Return annotation cannot contain `Any`.
     def __iter__(self) -> Iterator[Any]:
         ...
 
@@ -196,6 +199,7 @@ class PathHandler(EventLogger):
                 ```
         """
         super().__init__()
+        # pyre-fixme[4]: Attribute must be annotated.
         self._non_blocking_io_manager = None
         self._non_blocking_io_executor = async_executor
         try:
@@ -377,6 +381,8 @@ class PathHandler(EventLogger):
                 "is most likely due to invalid `opena` args. Make sure "
                 "they match the `open` args for the `PathHandler`."
             )
+            # pyre-fixme[7]: Expected `Union[IO[bytes], IO[str]]` but got implicit
+            #  return value of `None`.
             self._async_close()
 
     def _async_join(self, path: Optional[str] = None, **kwargs: Any) -> bool:
@@ -559,6 +565,7 @@ class NativePathHandler(PathHandler):
     handler uses `open()` and `os.*` calls on the given path.
     """
 
+    # pyre-fixme[4]: Attribute must be annotated.
     _cwd = None
 
     def __init__(
@@ -590,6 +597,7 @@ class NativePathHandler(PathHandler):
         errors: Optional[str] = None,
         newline: Optional[str] = None,
         closefd: bool = True,
+        # pyre-fixme[24]: Generic type `Callable` expects 2 type parameters.
         opener: Optional[Callable] = None,
         **kwargs: Any,
     ) -> Union[IO[str], IO[bytes]]:
@@ -887,6 +895,8 @@ class OneDrivePathHandler(HTTPURLHandler):
     def _get_supported_prefixes(self) -> List[str]:
         return [self.ONE_DRIVE_PREFIX]
 
+    # pyre-fixme[14]: `_get_local_path` overrides method defined in `HTTPURLHandler`
+    #  inconsistently.
     def _get_local_path(self, path: str, force: bool = False, **kwargs: Any) -> str:
         """
         This implementation downloads the remote resource and caches it locally.
@@ -938,6 +948,7 @@ class PathManager:
         Flag for enabling / disabling telemetry.
         """
 
+    # pyre-fixme[24]: Generic type `os.PathLike` expects 1 type parameter.
     def __get_path_handler(self, path: Union[str, os.PathLike]) -> PathHandler:
         """
         Finds a PathHandler that supports the given path. Falls back to the native
@@ -977,6 +988,8 @@ class PathManager:
                 )
                 self._enable_logging = False
 
+    # pyre-fixme[34]: `Variable[VTYPE <: [str, int, bool, float]]` isn't present in
+    #  the function's parameters.
     def __get_open_keys(self, path: str, mode: str, buffering: int) -> Dict[str, VTYPE]:
         """
         Helper function to return common set of key-value pairs applicable to open apis.
@@ -1238,6 +1251,8 @@ class PathManager:
         except TypeError:
             bret = handler._get_local_path(path, **kwargs)
         kvs = {"op": "get_local_path", "path": path, "force": force}
+        # pyre-fixme[6]: For 2nd param expected `Dict[str, Variable[VTYPE <: [str,
+        #  int, bool, float]]]` but got `Dict[str, Union[bool, str]]`.
         self.__log_tmetry_keys(handler, kvs)
         return bret
 
@@ -1270,7 +1285,10 @@ class PathManager:
         bret = handler._copy_from_local(
             local_path=local_path, dst_path=dst_path, overwrite=overwrite, **kwargs
         )
+        # pyre-fixme[6]: For 2nd param expected `Dict[str, Variable[VTYPE <: [str,
+        #  int, bool, float]]]` but got `Dict[str, Union[bool, str]]`.
         self.__log_tmetry_keys(handler, kvs)
+        # pyre-fixme[7]: Expected `bool` but got `None`.
         return bret
 
     def exists(self, path: str, **kwargs: Any) -> bool:
@@ -1392,6 +1410,8 @@ class PathManager:
         """
         if path is None and self._cwd is None:
             return True
+        # pyre-fixme[6]: For 1st param expected `Union[PathLike[typing.Any], str]`
+        #  but got `Optional[str]`.
         handler = self.__get_path_handler(path or self._cwd)
         if self.__get_path_handler(path or self._cwd)._set_cwd(path, **kwargs):  # type: ignore
             self._cwd = path
@@ -1399,6 +1419,8 @@ class PathManager:
         else:
             bret = False
         kvs = {"op": "set_cwd", "path": path}
+        # pyre-fixme[6]: For 2nd param expected `Dict[str, Variable[VTYPE <: [str,
+        #  int, bool, float]]]` but got `Dict[str, Optional[str]]`.
         self.__log_tmetry_keys(handler, kvs)
         return bret
 
@@ -1488,6 +1510,8 @@ class PathManager:
         for handler in self._path_handlers.values():
             handler._strict_kwargs_check = enable
 
+    # pyre-fixme[3]: Return type must be annotated.
+    # pyre-fixme[2]: Parameter must be annotated.
     def set_logging(self, enable_logging=True):
         self._enable_logging = enable_logging
 
@@ -1500,6 +1524,7 @@ class PathManager:
         assert dst_handler._copy_from_local is not None
 
         local_file = src_handler._get_local_path(src_path, **kwargs)
+        # pyre-fixme[7]: Expected `bool` but got `None`.
         return dst_handler._copy_from_local(
             local_file, dst_path, overwrite=overwrite, **kwargs
         )
@@ -1536,9 +1561,11 @@ class PathManagerFactory:
     """
 
     GLOBAL_PATH_MANAGER = "global_path_manager"
+    # pyre-fixme[4]: Attribute must be annotated.
     pm_list = {}
 
     @staticmethod
+    # pyre-fixme[2]: Parameter must be annotated.
     def get(key=GLOBAL_PATH_MANAGER, defaults_setup=False) -> PathManager:
         """
         Get the path manager instance associated with a key.
@@ -1561,6 +1588,8 @@ class PathManagerFactory:
         return PathManagerFactory.pm_list[key]
 
     @staticmethod
+    # pyre-fixme[3]: Return type must be annotated.
+    # pyre-fixme[2]: Parameter must be annotated.
     def remove(key):
         """
         Remove the path manager instance associated with a key.
@@ -1577,4 +1606,5 @@ A global instance of PathManager.
 This global instance is provided for backward compatibility, but it is
 recommended that clients use PathManagerFactory
 """
+# pyre-fixme[5]: Global expression must be annotated.
 g_pathmgr = PathManagerFactory.get(defaults_setup=True)

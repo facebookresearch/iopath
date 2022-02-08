@@ -37,7 +37,6 @@ class TestNativeIO(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls._tmpdir = tempfile.mkdtemp()
         cls._filename = "test_file_for_iopath_with_a_really_uncommon_name.txt"
-        # pyre-ignore
         with open(os.path.join(cls._tmpdir, cls._filename), "w") as f:
             cls._tmpfile = f.name
             f.write(cls._tmpfile_contents)
@@ -49,6 +48,8 @@ class TestNativeIO(unittest.TestCase):
         if cls._tmpdir is not None:
             shutil.rmtree(cls._tmpdir)  # type: ignore
 
+    # pyre-fixme[3]: Return type must be annotated.
+    # pyre-fixme[2]: Parameter must be annotated.
     def run(self, result=None):
         with patch("iopath.common.event_logger.EventLogger.log_event"):
             super(TestNativeIO, self).run(result)
@@ -61,6 +62,7 @@ class TestNativeIO(unittest.TestCase):
         self._pathmgr._async_handlers.clear()
 
     # @patch("iopath.common.event_logger.EventLogger.log_event")
+    # pyre-fixme[3]: Return type must be annotated.
     def log_event_mock(self, topic: Optional[str] = None):
         pass
 
@@ -75,6 +77,7 @@ class TestNativeIO(unittest.TestCase):
             self.assertEqual(f.read(), self._tmpfile_contents)
 
         _pathmgr = PathManagerFactory.get("test_pm")
+        # pyre-fixme[6]: For 1st param expected `str` but got `Optional[str]`.
         with _pathmgr.open(self._tmpfile, "r") as f:
             self.assertEqual(f.read(), self._tmpfile_contents)
 
@@ -112,7 +115,6 @@ class TestNativeIO(unittest.TestCase):
     def test_exists(self) -> None:
         # pyre-ignore
         self.assertTrue(self._pathmgr.exists(self._tmpfile))
-        # pyre-ignore
         fake_path = os.path.join(self._tmpdir, uuid.uuid4().hex)
         self.assertFalse(self._pathmgr.exists(fake_path))
 
@@ -121,7 +123,7 @@ class TestNativeIO(unittest.TestCase):
         # This is a directory, not a file, so it should fail
         self.assertFalse(self._pathmgr.isfile(self._tmpdir))  # pyre-ignore
         # This is a non-existing path, so it should fail
-        fake_path = os.path.join(self._tmpdir, uuid.uuid4().hex)  # pyre-ignore
+        fake_path = os.path.join(self._tmpdir, uuid.uuid4().hex)
         self.assertFalse(self._pathmgr.isfile(fake_path))
 
     def test_isdir(self) -> None:
@@ -131,13 +133,12 @@ class TestNativeIO(unittest.TestCase):
         # pyre-ignore
         self.assertFalse(self._pathmgr.isdir(self._tmpfile))
         # This is a non-existing path, so it should fail
-        # pyre-ignore
         fake_path = os.path.join(self._tmpdir, uuid.uuid4().hex)
         self.assertFalse(self._pathmgr.isdir(fake_path))
 
     def test_ls(self) -> None:
         # Create some files in the tempdir to ls out.
-        root_dir = os.path.join(self._tmpdir, "ls")  # pyre-ignore
+        root_dir = os.path.join(self._tmpdir, "ls")
         os.makedirs(root_dir, exist_ok=True)
         files = sorted(["foo.txt", "bar.txt", "baz.txt"])
         for f in files:
@@ -150,7 +151,6 @@ class TestNativeIO(unittest.TestCase):
         shutil.rmtree(root_dir)
 
     def test_mkdirs(self) -> None:
-        # pyre-ignore
         new_dir_path = os.path.join(self._tmpdir, "new", "tmp", "dir")
         self.assertFalse(self._pathmgr.exists(new_dir_path))
         self._pathmgr.mkdirs(new_dir_path)
@@ -162,6 +162,7 @@ class TestNativeIO(unittest.TestCase):
         with open(_tmpfile_2, "w") as f:
             f.write(_tmpfile_2_contents)
             f.flush()
+        # pyre-fixme[6]: For 1st param expected `str` but got `Optional[str]`.
         self.assertTrue(self._pathmgr.copy(self._tmpfile, _tmpfile_2, overwrite=True))
         with self._pathmgr.open(_tmpfile_2, "r") as f:
             self.assertEqual(f.read(), self._tmpfile_contents)
@@ -173,7 +174,6 @@ class TestNativeIO(unittest.TestCase):
         with open(_tmpfile_2, "w") as f:
             f.write(_tmpfile_2_contents)
             f.flush()
-        # pyre-ignore
         self.assertTrue(self._pathmgr.mv(_tmpfile_2, _tmpfile_3))
         with self._pathmgr.open(_tmpfile_3, "r") as f:
             self.assertEqual(f.read(), _tmpfile_2_contents)
@@ -189,7 +189,6 @@ class TestNativeIO(unittest.TestCase):
         os.remove(_symlink)
 
     def test_rm(self) -> None:
-        # pyre-ignore
         with open(os.path.join(self._tmpdir, "test_rm.txt"), "w") as f:
             rm_file = f.name
             f.write(self._tmpfile_contents)
@@ -202,15 +201,20 @@ class TestNativeIO(unittest.TestCase):
 
     def test_set_cwd(self) -> None:
         # File not found since cwd not set yet.
+        # pyre-fixme[6]: For 1st param expected `str` but got `Optional[str]`.
         self.assertFalse(self._pathmgr.isfile(self._filename))
+        # pyre-fixme[6]: For 1st param expected `str` but got `Optional[str]`.
         self.assertTrue(self._pathmgr.isfile(self._tmpfile))
         # Once cwd is set, relative file path works.
         self._pathmgr.set_cwd(self._tmpdir)
+        # pyre-fixme[6]: For 1st param expected `str` but got `Optional[str]`.
         self.assertTrue(self._pathmgr.isfile(self._filename))
 
         # Set cwd to None
         self._pathmgr.set_cwd(None)
+        # pyre-fixme[6]: For 1st param expected `str` but got `Optional[str]`.
         self.assertFalse(self._pathmgr.isfile(self._filename))
+        # pyre-fixme[6]: For 1st param expected `str` but got `Optional[str]`.
         self.assertTrue(self._pathmgr.isfile(self._tmpfile))
 
         # Set cwd to invalid path
@@ -221,6 +225,7 @@ class TestNativeIO(unittest.TestCase):
         self._pathmgr.set_cwd(self._tmpdir)
         # Make sure _get_path_with_cwd() returns correctly.
         self.assertEqual(
+            # pyre-fixme[6]: For 1st param expected `str` but got `Optional[str]`.
             self._pathmgr._native_path_handler._get_path_with_cwd(self._filename),
             self._tmpfile,
         )
@@ -267,7 +272,6 @@ class TestNativeIO(unittest.TestCase):
         self._pathmgr.mkdirs(self._tmpdir, foo="foo")  # type: ignore
         f = self._pathmgr.open(self._tmpfile, foo="foo")  # type: ignore
         f.close()
-        # pyre-ignore
         with open(os.path.join(self._tmpdir, "test_rm.txt"), "w") as f:
             rm_file = f.name
             f.write(self._tmpfile_contents)
@@ -280,6 +284,8 @@ class TestHTTPIO(unittest.TestCase):
     _filename = "facebook.html"
     _pathmgr = PathManager()
 
+    # pyre-fixme[3]: Return type must be annotated.
+    # pyre-fixme[2]: Parameter must be annotated.
     def run(self, result=None):
         with patch("iopath.common.event_logger.EventLogger.log_event"):
             super(TestHTTPIO, self).run(result)
@@ -394,6 +400,8 @@ class TestHTTPIO(unittest.TestCase):
 class TestLazyPath(unittest.TestCase):
     _pathmgr = PathManager()
 
+    # pyre-fixme[3]: Return type must be annotated.
+    # pyre-fixme[2]: Parameter must be annotated.
     def run(self, result=None):
         with patch("iopath.common.event_logger.EventLogger.log_event"):
             super(TestLazyPath, self).run(result)
@@ -443,6 +451,8 @@ class TestLazyPath(unittest.TestCase):
 class TestOneDrive(unittest.TestCase):
     _url = "https://1drv.ms/u/s!Aus8VCZ_C_33gQbJsUPTIj3rQu99"
 
+    # pyre-fixme[3]: Return type must be annotated.
+    # pyre-fixme[2]: Parameter must be annotated.
     def run(self, result=None):
         with patch("iopath.common.event_logger.EventLogger.log_event"):
             super(TestOneDrive, self).run(result)

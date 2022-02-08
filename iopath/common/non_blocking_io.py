@@ -34,6 +34,7 @@ class PathData:
     waits for it to finish, and then continues to poll.
     """
 
+    # pyre-fixme[24]: Generic type `Queue` expects 1 type parameter.
     queue: Queue
     thread: Thread
 
@@ -60,9 +61,11 @@ class NonBlockingIOManager:
             executor: User can optionally attach a custom executor to
                 perform async operations through `PathHandler.__init__`.
         """
+        # pyre-fixme[4]: Attribute must be annotated.
         self._path_to_data = {}  # Map from path to `PathData` object
         self._buffered = buffered
         self._IO = NonBlockingBufferedIO if self._buffered else NonBlockingIO
+        # pyre-fixme[4]: Attribute must be annotated.
         self._pool = executor or concurrent.futures.ThreadPoolExecutor()
 
     def get_non_blocking_io(
@@ -105,6 +108,8 @@ class NonBlockingIOManager:
             self._path_to_data[path] = PathData(queue, t)
 
         kwargs = {} if not self._buffered else {"buffering": buffering}
+        # pyre-fixme[29]: `Type[Union[NonBlockingBufferedIO, NonBlockingIO]]` is not
+        #  a function.
         return self._IO(
             notify_manager=lambda io_callable: (  # Pass async jobs to manager
                 self._path_to_data[path].queue.put(io_callable)
@@ -127,6 +132,7 @@ class NonBlockingIOManager:
             #   - func = file.write(b)
             #   - func = file.close()
             #   - func = None
+            # pyre-fixme[16]: `Optional` has no attribute `get`.
             func = queue.get()  # Blocks until item read.
             if func is None:  # Thread join signal.
                 break
@@ -238,12 +244,17 @@ class NonBlockingIO(io.IOBase):
         """
         Called on `f.write()`. Gives the manager the write job to call.
         """
+        # pyre-fixme[6]: For 1st param expected `() -> None` but got `() -> int`.
+        # pyre-fixme[6]: For 1st param expected `bytes` but got `Union[bytearray,
+        #  bytes]`.
         self._notify_manager(lambda: self._io.write(b))
 
     def seek(self, offset: int, whence: int = 0) -> int:
         """
         Called on `f.seek()`.
         """
+        # pyre-fixme[7]: Expected `int` but got implicit return value of `None`.
+        # pyre-fixme[6]: For 1st param expected `() -> None` but got `() -> int`.
         self._notify_manager(lambda: self._io.seek(offset, whence))
 
     def tell(self) -> int:
@@ -252,10 +263,14 @@ class NonBlockingIO(io.IOBase):
         """
         raise ValueError("ioPath async writes does not support `tell` calls.")
 
+    # pyre-fixme[14]: `truncate` overrides method defined in `IOBase` inconsistently.
+    # pyre-fixme[9]: size has type `int`; used as `None`.
     def truncate(self, size: int = None) -> int:
         """
         Called on `f.truncate()`.
         """
+        # pyre-fixme[7]: Expected `int` but got implicit return value of `None`.
+        # pyre-fixme[6]: For 1st param expected `() -> None` but got `() -> int`.
         self._notify_manager(lambda: self._io.truncate(size))
 
     def close(self) -> None:
@@ -269,6 +284,8 @@ class NonBlockingIO(io.IOBase):
         # `f.close` calls.
         self._notify_manager(lambda: self._io.close())
         if not self._close_called and self._callback_after_file_close:
+            # pyre-fixme[6]: For 1st param expected `() -> None` but got `(None) ->
+            #  None`.
             self._notify_manager(self._callback_after_file_close)
         self._close_called = True
 
@@ -276,6 +293,7 @@ class NonBlockingIO(io.IOBase):
 # NOTE: To use this class, use `buffered=True` in `NonBlockingIOManager`.
 # NOTE: This class expects the IO mode to be buffered.
 class NonBlockingBufferedIO(io.IOBase):
+    # pyre-fixme[4]: Attribute must be annotated.
     MAX_BUFFER_BYTES = 10 * 1024 * 1024  # 10 MiB
 
     def __init__(
@@ -300,6 +318,7 @@ class NonBlockingBufferedIO(io.IOBase):
         self._callback_after_file_close = callback_after_file_close
 
         self._buffers = [io.BytesIO()]
+        # pyre-fixme[4]: Attribute must be annotated.
         self._buffer_size = buffering if buffering > 0 else self.MAX_BUFFER_BYTES
         self._close_called = False
 
@@ -335,6 +354,8 @@ class NonBlockingBufferedIO(io.IOBase):
         # `ThreadPool` first closes the file and then executes the callback.
         self._notify_manager(lambda: self._io.close())
         if not self._close_called and self._callback_after_file_close:
+            # pyre-fixme[6]: For 1st param expected `() -> None` but got `(None) ->
+            #  None`.
             self._notify_manager(self._callback_after_file_close)
         self._close_called = True
 
@@ -356,6 +377,8 @@ class NonBlockingBufferedIO(io.IOBase):
         while pos < total_size:
             item = view[pos : pos + self._buffer_size]
             # `item=item` is needed due to Python's late binding closures.
+            # pyre-fixme[6]: For 1st param expected `() -> None` but got `(item: Any
+            #  = ...) -> int`.
             self._notify_manager(lambda item=item: self._io.write(item))
             pos += self._buffer_size
         # Close buffer immediately after being written to file and create

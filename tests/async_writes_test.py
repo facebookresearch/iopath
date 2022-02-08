@@ -14,9 +14,12 @@ import time
 from iopath.common.file_io import PathManager
 
 
+# pyre-fixme[5]: Global expression must be annotated.
 logger = logging.getLogger(__name__)
 
 
+# pyre-fixme[3]: Return type must be annotated.
+# pyre-fixme[2]: Parameter must be annotated.
 def printx(str):
     logger.warning(f"[{time.strftime('%X')}] {str}")
 
@@ -40,6 +43,7 @@ class TestDriver:
             with self._pathmgr.opena(URI, "a") as f:
                 for i in range(self.NUM_JOBS):  # `i` goes from 0 to 9
                     FINAL_STR += f"{i}" * self.LEN
+                    # pyre-fixme[6]: For 1st param expected `bytes` but got `str`.
                     f.write(f"{i}" * self.LEN)
 
             mid_time = time.time()
