@@ -74,7 +74,7 @@ class NonBlockingIOManager:
         io_obj: Union[IO[str], IO[bytes]],
         callback_after_file_close: Optional[Callable[[None], None]] = None,
         buffering: Optional[int] = -1,
-    ) -> Union[IO[str], IO[bytes]]:
+    ) -> io.IOBase:
         """
         Called by `PathHandler._opena` with the path and returns a
         `NonBlockingIO` instance.

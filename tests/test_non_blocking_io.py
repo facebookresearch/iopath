@@ -56,19 +56,13 @@ class TestNativeIOAsync(unittest.TestCase):
         try:
             # Write the files.
             with self._pathmgr.opena(_tmpfile + "f", "w") as f:
-                # pyre-fixme[6]: For 1st param expected `bytes` but got `str`.
                 f.write("f1 ")
                 with self._pathmgr.opena(_tmpfile + "g", "w") as g:
-                    # pyre-fixme[6]: For 1st param expected `bytes` but got `str`.
                     f.write("f2 ")
-                    # pyre-fixme[6]: For 1st param expected `bytes` but got `str`.
                     g.write("g1 ")
-                    # pyre-fixme[6]: For 1st param expected `bytes` but got `str`.
                     f.write("f3 ")
-                # pyre-fixme[6]: For 1st param expected `bytes` but got `str`.
                 f.write("f4 ")
             with self._pathmgr.opena(_tmpfile + "f", "a") as f:
-                # pyre-fixme[6]: For 1st param expected `bytes` but got `str`.
                 f.write("f5 ")
             F_STR = "f1 f2 f3 f4 f5 "
             G_STR = "g1 "
@@ -100,15 +94,12 @@ class TestNativeIOAsync(unittest.TestCase):
         try:
             for _ in range(1):  # Opens 1 thread
                 with self._pathmgr.opena(_tmpfile + "1", "w") as f:
-                    # pyre-fixme[6]: For 1st param expected `bytes` but got `str`.
                     f.write(f"{_tmpfile_contents}-1")
             for _ in range(2):  # Opens 2 threads
                 with self._pathmgr.opena(_tmpfile + "2", "w") as f:
-                    # pyre-fixme[6]: For 1st param expected `bytes` but got `str`.
                     f.write(f"{_tmpfile_contents}-2")
             for _ in range(3):  # Opens 3 threads
                 with self._pathmgr.opena(_tmpfile + "3", "w") as f:
-                    # pyre-fixme[6]: For 1st param expected `bytes` but got `str`.
                     f.write(f"{_tmpfile_contents}-3")
             _path_to_data = (
                 self._pathmgr._native_path_handler._non_blocking_io_manager._path_to_data
@@ -144,10 +135,8 @@ class TestNativeIOAsync(unittest.TestCase):
             _file1_text = "File1 text"
             _file2_text = "File2 text"
             with self._pathmgr.opena(_file1, "w") as f:
-                # pyre-fixme[6]: For 1st param expected `bytes` but got `str`.
                 f.write(_file1_text)
             with self._pathmgr.opena(_file2, "a") as f:
-                # pyre-fixme[6]: For 1st param expected `bytes` but got `str`.
                 f.write(_file2_text)
             _path_to_data = (
                 self._pathmgr._native_path_handler._non_blocking_io_manager._path_to_data
@@ -169,7 +158,6 @@ class TestNativeIOAsync(unittest.TestCase):
             self.assertTrue(self._pathmgr.async_join())
             try:
                 with self._pathmgr.opena(_file, "w") as f:
-                    # pyre-fixme[6]: For 1st param expected `bytes` but got `str`.
                     f.write("1")
             finally:
                 self.assertTrue(self._pathmgr.async_join())
@@ -178,7 +166,6 @@ class TestNativeIOAsync(unittest.TestCase):
 
             try:
                 f = self._pathmgr.opena(_file, "a")
-                # pyre-fixme[6]: For 1st param expected `bytes` but got `str`.
                 f.write("2")
                 f.close()
             finally:
@@ -203,10 +190,8 @@ class TestNativeIOAsync(unittest.TestCase):
             # Make sure that `opena` args are used correctly by using
             # different newline args.
             with self._pathmgr.opena(_file, "w", newline="\r\n") as f:
-                # pyre-fixme[6]: For 1st param expected `bytes` but got `str`.
                 f.write("1\n")
             with self._pathmgr.opena(_file, "a", newline="\n") as f:
-                # pyre-fixme[6]: For 1st param expected `bytes` but got `str`.
                 f.write("2\n3")
         finally:
             self.assertTrue(self._pathmgr.async_close())
@@ -238,7 +223,6 @@ class TestNativeIOAsync(unittest.TestCase):
             with self._pathmgr.opena(
                 _file_tmp, "w", callback_after_file_close=mock_cb
             ) as f:
-                # pyre-fixme[6]: For 1st param expected `bytes` but got `str`.
                 f.write(_data)
         finally:
             self.assertTrue(self._pathmgr.async_close())
@@ -285,7 +269,6 @@ class TestNativeIOAsync(unittest.TestCase):
         _file = os.path.join(self._tmpdir, "async.txt")
         try:
             with self._pathmgr.opena(_file, "w") as f:
-                # pyre-fixme[6]: For 1st param expected `bytes` but got `str`.
                 f.write("Text")
             # Make sure the manager's executor is the same as the user's.
             self.assertEqual(
@@ -302,10 +285,8 @@ class TestNativeIOAsync(unittest.TestCase):
         # Test seek.
         try:
             with self._pathmgr.opena(_file, "wb") as f:
-                # pyre-fixme[6]: For 1st param expected `str` but got `bytes`.
                 f.write(b"012345")  # file = 012345^
                 f.seek(1)  # file = 0^12345
-                # pyre-fixme[6]: For 1st param expected `str` but got `bytes`.
                 f.write(b"##")  # file = 0##^345
         finally:
             self.assertTrue(self._pathmgr.async_join())
@@ -315,7 +296,6 @@ class TestNativeIOAsync(unittest.TestCase):
         # Test truncate.
         try:
             with self._pathmgr.opena(_file, "wb") as f:
-                # pyre-fixme[6]: For 1st param expected `str` but got `bytes`.
                 f.write(b"012345")  # file = 012345^
                 f.seek(2)  # file = 01^2345
                 f.truncate()  # file = 01^
@@ -327,14 +307,11 @@ class TestNativeIOAsync(unittest.TestCase):
         # Big test for seek and truncate.
         try:
             with self._pathmgr.opena(_file, "wb") as f:
-                # pyre-fixme[6]: For 1st param expected `str` but got `bytes`.
                 f.write(b"0123456789")  # file = 0123456789^
                 f.seek(2)  # file = 01^23456789
-                # pyre-fixme[6]: For 1st param expected `str` but got `bytes`.
                 f.write(b"##")  # file = 01##^456789
                 f.seek(3, io.SEEK_CUR)  # file = 01##456^789
                 f.truncate()  # file = 01##456^
-                # pyre-fixme[6]: For 1st param expected `str` but got `bytes`.
                 f.write(b"$")  # file = 01##456$^
         finally:
             self.assertTrue(self._pathmgr.async_join())
@@ -384,11 +361,8 @@ class TestNonBlockingIO(unittest.TestCase):
                 #  attribute `_notify_manager`.
                 wraps=f._notify_manager,
             ) as mock_notify_manager:
-                # pyre-fixme[6]: For 1st param expected `bytes` but got `str`.
                 f.write("." * 1)
-                # pyre-fixme[6]: For 1st param expected `bytes` but got `str`.
                 f.write("." * 2)
-                # pyre-fixme[6]: For 1st param expected `bytes` but got `str`.
                 f.write("." * 3)
                 # Should notify manager 3 times: 3 write calls.
                 self.assertEqual(mock_notify_manager.call_count, 3)
@@ -419,12 +393,10 @@ class TestNonBlockingIO(unittest.TestCase):
                     #  no attribute `_notify_manager`.
                     wraps=f._notify_manager,
                 ) as mock_notify_manager:
-                    # pyre-fixme[6]: For 1st param expected `str` but got `bytes`.
                     f.write(b"." * 9)
                     mock_flush.assert_not_called()  # buffer not filled - don't flush
                     mock_notify_manager.assert_not_called()
                     # Should flush when full.
-                    # pyre-fixme[6]: For 1st param expected `str` but got `bytes`.
                     f.write(b"." * 13)
                     mock_flush.assert_called_once()  # buffer filled - should flush
                     # `flush` should notify manager 4 times: 3 `file.write` and 1 `buffer.close`.
@@ -443,7 +415,6 @@ class TestNonBlockingIO(unittest.TestCase):
                 path=_file, io_obj=open(_file, "ab"), buffering=10
             )
             with patch.object(f, "flush", wraps=f.flush) as mock_flush:
-                # pyre-fixme[6]: For 1st param expected `str` but got `bytes`.
                 f.write(b"." * 5)
                 mock_flush.assert_not_called()
                 f.close()

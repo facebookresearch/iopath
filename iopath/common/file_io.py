@@ -10,6 +10,7 @@ import tempfile
 import traceback
 import uuid
 from collections import OrderedDict
+from io import IOBase
 from types import TracebackType
 from typing import (
     IO,
@@ -304,7 +305,7 @@ class PathHandler(EventLogger):
         callback_after_file_close: Optional[Callable[[None], None]] = None,
         buffering: int = -1,
         **kwargs: Any,
-    ) -> Union[IO[str], IO[bytes]]:
+    ) -> IOBase:
         """
         Open a file with asynchronous methods. `f.write()` calls will be dispatched
         asynchronously such that the main program can continue running.
@@ -1071,7 +1072,7 @@ class PathManager:
         buffering: int = -1,
         callback_after_file_close: Optional[Callable[[None], None]] = None,
         **kwargs: Any,
-    ) -> Union[IO[str], IO[bytes]]:
+    ) -> IOBase:
         """
         Open a file with asynchronous methods. `f.write()` calls will be dispatched
         asynchronously such that the main program can continue running.

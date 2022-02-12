@@ -43,7 +43,6 @@ class TestDriver:
             with self._pathmgr.opena(URI, "a") as f:
                 for i in range(self.NUM_JOBS):  # `i` goes from 0 to 9
                     FINAL_STR += f"{i}" * self.LEN
-                    # pyre-fixme[6]: For 1st param expected `bytes` but got `str`.
                     f.write(f"{i}" * self.LEN)
 
             mid_time = time.time()
