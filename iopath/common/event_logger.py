@@ -105,5 +105,6 @@ class EventLogger:
 
             for writer in self._writers:
                 writer.writeRecord(topic, self._evt)
-            del self._evt
+            if hasattr(self, "_evt"):
+                del self._evt
             self._evt = SimpleEventRecord()
