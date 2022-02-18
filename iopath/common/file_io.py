@@ -22,12 +22,13 @@ from typing import (
     List,
     MutableMapping,
     Optional,
-    Protocol,
     Set,
     Type,
     TypeVar,
     Union,
 )
+from typing_extensions import Protocol
+
 from urllib.parse import urlparse
 
 import portalocker  # type: ignore
