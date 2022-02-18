@@ -26,9 +26,8 @@ except ImportError:
 
 
 # Override for close() on files to write to Amazon S3
-# pyre-fixme[3]: Return type must be annotated.
 # pyre-fixme[2]: Parameter must be annotated.
-def s3_close_and_upload(self, client, bucket, s3_path, transfer_config):
+def s3_close_and_upload(self, client, bucket, s3_path, transfer_config) -> None:
     # Seek to start, for use by upload_fileobj.
     self.seek(0)
 

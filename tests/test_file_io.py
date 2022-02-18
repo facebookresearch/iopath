@@ -73,6 +73,7 @@ class TestNativeIO(unittest.TestCase):
             self.assertEqual(f.read(), self._tmpfile_contents)
 
     def test_factory_open(self) -> None:
+        # pyre-fixme[6]: For 1st param expected `str` but got `Optional[str]`.
         with g_pathmgr.open(self._tmpfile, "r") as f:
             self.assertEqual(f.read(), self._tmpfile_contents)
 
