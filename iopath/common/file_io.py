@@ -22,7 +22,6 @@ from typing import (
     List,
     MutableMapping,
     Optional,
-    Protocol,
     Set,
     Type,
     TypeVar,
@@ -34,6 +33,7 @@ import portalocker  # type: ignore
 from iopath.common.download import download
 from iopath.common.event_logger import VTYPE, EventLogger
 from iopath.common.non_blocking_io import NonBlockingIOManager
+from typing_extensions import Protocol
 
 
 __all__ = ["LazyPath", "PathManager", "get_cache_dir", "file_lock"]

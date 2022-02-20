@@ -19,6 +19,7 @@ setup(
     install_requires=[
         "boto3",
         "tqdm",
+        "typing_extensions",
         "portalocker",
         "dataclasses; python_version<'3.7'",
     ],
