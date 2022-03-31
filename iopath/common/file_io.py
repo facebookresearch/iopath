@@ -1274,7 +1274,7 @@ class PathManager:
         Returns:
             status (bool): True on success
         """
-        assert os.path.exists(local_path)
+        assert os.path.exists(local_path), f"local_path = {local_path}"
         handler = self.__get_path_handler(dst_path)
 
         kvs = {
