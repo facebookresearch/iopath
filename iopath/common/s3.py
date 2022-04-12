@@ -239,6 +239,8 @@ class S3PathHandler(PathHandler):
                     # local last modified timestamp, and would be improperly used.
                     # Better fix: set last modified time via the remote object's last modified time,
                     # in download_file().
+                    # pyre-fixme[58]: `>` is not supported for operand types
+                    #  `datetime` and `timedelta`.
                     if (local_dt - remote_dt) > dt.timedelta(minutes=0):
                         logger.info(
                             "URL {} was already cached in {}".format(path, local_path)
