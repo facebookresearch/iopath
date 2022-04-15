@@ -1607,4 +1607,5 @@ A global instance of PathManager.
 This global instance is provided for backward compatibility, but it is
 recommended that clients use PathManagerFactory
 """
-g_pathmgr: PathManager = PathManagerFactory.get(defaults_setup=True)
+# pyre-fixme[5]:  Global expression must be annotated.
+g_pathmgr = PathManagerFactory.get(defaults_setup=True)
