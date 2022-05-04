@@ -115,6 +115,8 @@ class TestNativeIO(unittest.TestCase):
     def test_exists(self) -> None:
         # pyre-ignore
         self.assertTrue(self._pathmgr.exists(self._tmpfile))
+        # pyre-fixme[6]: For 1st param expected `Union[PathLike[str], str]` but got
+        #  `Optional[str]`.
         fake_path = os.path.join(self._tmpdir, uuid.uuid4().hex)
         self.assertFalse(self._pathmgr.exists(fake_path))
 
@@ -123,6 +125,8 @@ class TestNativeIO(unittest.TestCase):
         # This is a directory, not a file, so it should fail
         self.assertFalse(self._pathmgr.isfile(self._tmpdir))  # pyre-ignore
         # This is a non-existing path, so it should fail
+        # pyre-fixme[6]: For 1st param expected `Union[PathLike[str], str]` but got
+        #  `Optional[str]`.
         fake_path = os.path.join(self._tmpdir, uuid.uuid4().hex)
         self.assertFalse(self._pathmgr.isfile(fake_path))
 
@@ -133,11 +137,15 @@ class TestNativeIO(unittest.TestCase):
         # pyre-ignore
         self.assertFalse(self._pathmgr.isdir(self._tmpfile))
         # This is a non-existing path, so it should fail
+        # pyre-fixme[6]: For 1st param expected `Union[PathLike[str], str]` but got
+        #  `Optional[str]`.
         fake_path = os.path.join(self._tmpdir, uuid.uuid4().hex)
         self.assertFalse(self._pathmgr.isdir(fake_path))
 
     def test_ls(self) -> None:
         # Create some files in the tempdir to ls out.
+        # pyre-fixme[6]: For 1st param expected `Union[PathLike[str], str]` but got
+        #  `Optional[str]`.
         root_dir = os.path.join(self._tmpdir, "ls")
         os.makedirs(root_dir, exist_ok=True)
         files = sorted(["foo.txt", "bar.txt", "baz.txt"])
@@ -151,6 +159,8 @@ class TestNativeIO(unittest.TestCase):
         shutil.rmtree(root_dir)
 
     def test_mkdirs(self) -> None:
+        # pyre-fixme[6]: For 1st param expected `Union[PathLike[str], str]` but got
+        #  `Optional[str]`.
         new_dir_path = os.path.join(self._tmpdir, "new", "tmp", "dir")
         self.assertFalse(self._pathmgr.exists(new_dir_path))
         self._pathmgr.mkdirs(new_dir_path)
@@ -189,6 +199,8 @@ class TestNativeIO(unittest.TestCase):
         os.remove(_symlink)
 
     def test_rm(self) -> None:
+        # pyre-fixme[6]: For 1st param expected `Union[PathLike[str], str]` but got
+        #  `Optional[str]`.
         with open(os.path.join(self._tmpdir, "test_rm.txt"), "w") as f:
             rm_file = f.name
             f.write(self._tmpfile_contents)
@@ -272,6 +284,8 @@ class TestNativeIO(unittest.TestCase):
         self._pathmgr.mkdirs(self._tmpdir, foo="foo")  # type: ignore
         f = self._pathmgr.open(self._tmpfile, foo="foo")  # type: ignore
         f.close()
+        # pyre-fixme[6]: For 1st param expected `Union[PathLike[str], str]` but got
+        #  `Optional[str]`.
         with open(os.path.join(self._tmpdir, "test_rm.txt"), "w") as f:
             rm_file = f.name
             f.write(self._tmpfile_contents)
