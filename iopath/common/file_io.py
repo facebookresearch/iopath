@@ -13,10 +13,10 @@ from collections import OrderedDict
 from io import IOBase
 from types import TracebackType
 from typing import (
-    IO,
     Any,
     Callable,
     Dict,
+    IO,
     Iterable,
     Iterator,
     List,
@@ -31,7 +31,7 @@ from urllib.parse import urlparse
 
 import portalocker  # type: ignore
 from iopath.common.download import download
-from iopath.common.event_logger import VTYPE, EventLogger
+from iopath.common.event_logger import EventLogger, VTYPE
 from iopath.common.non_blocking_io import NonBlockingIOManager
 from typing_extensions import Protocol
 

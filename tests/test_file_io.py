@@ -11,13 +11,13 @@ from unittest.mock import MagicMock, patch
 
 from iopath.common import file_io
 from iopath.common.file_io import (
+    g_pathmgr,
+    get_cache_dir,
     HTTPURLHandler,
     LazyPath,
     OneDrivePathHandler,
     PathManager,
     PathManagerFactory,
-    g_pathmgr,
-    get_cache_dir,
 )
 
 

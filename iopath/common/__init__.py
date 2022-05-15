@@ -1,6 +1,6 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
 
-from iopath.common.file_io import LazyPath, PathManager, file_lock, get_cache_dir
+from iopath.common.file_io import file_lock, get_cache_dir, LazyPath, PathManager
 
 
 __all__ = [

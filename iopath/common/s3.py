@@ -8,9 +8,9 @@ import shutil
 import types
 from datetime import datetime, timedelta
 from functools import partial
-from typing import IO, Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, IO, List, Optional, Tuple, Union
 
-from iopath.common.file_io import PathHandler, file_lock, get_cache_dir
+from iopath.common.file_io import file_lock, get_cache_dir, PathHandler
 
 
 try:

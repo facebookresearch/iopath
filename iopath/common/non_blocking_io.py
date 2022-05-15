@@ -6,7 +6,7 @@ import logging
 from dataclasses import dataclass
 from queue import Queue
 from threading import Thread
-from typing import IO, Callable, Optional, Union
+from typing import Callable, IO, Optional, Union
 
 
 """
