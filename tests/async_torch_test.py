@@ -57,6 +57,9 @@ class TestDriver:
                         "optimizer_state_dict": optimizer.state_dict(),
                         "large": large,
                     },
+                    # pyre-fixme[6]: For 2nd param expected
+                    #  `Union[PathLike[typing.Any], IO[bytes], str, BinaryIO]` but got
+                    #  `IOBase`.
                     f,
                 )
                 f.close()
