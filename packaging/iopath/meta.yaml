@@ -11,7 +11,11 @@ requirements:
     - python
     - setuptools
 
+  build:
+    - typing_extensions
+
   run:
+    - typing_extensions
     - python
     - tqdm
     - portalocker
