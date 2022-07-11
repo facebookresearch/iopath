@@ -12,6 +12,7 @@ requirements:
     - setuptools
 
   build:
+    - python
     - typing_extensions
 
   run:
