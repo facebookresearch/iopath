@@ -11,10 +11,6 @@ requirements:
     - python
     - setuptools
 
-  build:
-    - python
-    - typing_extensions
-
   run:
     - typing_extensions
     - python

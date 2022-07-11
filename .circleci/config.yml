@@ -32,7 +32,7 @@ install_dep: &install_dep
   - run:
       name: Install Dependencies
       command: |
-        pip install --progress-bar off flake8 flake8-bugbear flake8-comprehensions isort==4.3.21 black==20.8b1
+        pip install --progress-bar off flake8 flake8-bugbear flake8-comprehensions
 
 install_iopath: &install_iopath
   - run:
@@ -77,14 +77,6 @@ jobs:
 
       - <<: *install_iopath
 
-      - run:
-          name: isort
-          command: |
-            isort -c -sp .
-      - run:
-          name: black
-          command: |
-            black --check .
       - run:
           name: flake8
           command: |
