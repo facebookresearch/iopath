@@ -17,14 +17,12 @@ from typing import (
     Callable,
     Dict,
     IO,
-    Iterable,
     Iterator,
     List,
     MutableMapping,
     Optional,
     Set,
     Type,
-    TypeVar,
     Union,
 )
 from urllib.parse import urlparse
