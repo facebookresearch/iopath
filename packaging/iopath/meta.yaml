@@ -11,9 +11,6 @@ requirements:
     - python
     - setuptools
 
-  build:
-    - typing_extensions
-
   run:
     - typing_extensions
     - python
@@ -23,7 +20,7 @@ requirements:
 
 build:
   string: py{{py}}
-  script: BUILD_NIGHTLY=1 python setup.py install --single-version-externally-managed --record=record.txt # [not win]
+  script: BUILD_NIGHTLY=1 ${PYTHON} setup.py install --single-version-externally-managed --record=record.txt # [not win]
 
 about:
   home: https://github.com/facebookresearch/iopath
