@@ -113,6 +113,7 @@ class S3PathHandler(PathHandler):
         self.transfer_config = TransferConfig(
             **(transfer_config_kwargs if transfer_config_kwargs else {})
         )
+        self._client_pid = None
 
     def _get_supported_prefixes(self) -> List[str]:
         """
@@ -140,11 +141,12 @@ class S3PathHandler(PathHandler):
     # pyre-fixme[3]: Return type must be annotated.
     def _get_client(self, bucket: str):
         logger = logging.getLogger(__name__)
-        if not hasattr(self, "client"):
+        if self._client_pid is None or not hasattr(self, "client") or self._client_pid != os.getpid():
             try:
                 session = boto3.Session(profile_name=self.profile)
                 # pyre-fixme[16]: `S3PathHandler` has no attribute `client`.
                 self.client = session.client("s3")
+                self._client_pid = os.getpid()
             except botocore.exceptions.NoCredentialsError as e:
                 logger.error(
                     " See https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html "
