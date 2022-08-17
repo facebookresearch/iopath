@@ -52,8 +52,6 @@ class TestNativeIOAsync(unittest.TestCase):
         self._pathmgr._async_handlers.clear()
 
     def test_opena(self) -> None:
-        # pyre-fixme[6]: For 1st param expected `Union[PathLike[str], str]` but got
-        #  `Optional[str]`.
         _tmpfile = os.path.join(self._tmpdir, "async.txt")
         try:
             # Write the files.
@@ -91,8 +89,6 @@ class TestNativeIOAsync(unittest.TestCase):
         self.assertEqual(len(manager._path_to_data), 0)
 
     def test_async_join_behavior(self) -> None:
-        # pyre-fixme[6]: For 1st param expected `Union[PathLike[str], str]` but got
-        #  `Optional[str]`.
         _tmpfile = os.path.join(self._tmpdir, "async.txt")
         _tmpfile_contents = "Async Text"
         try:
@@ -132,11 +128,7 @@ class TestNativeIOAsync(unittest.TestCase):
         _filename = "async.txt"
         # `_file1` and `_file2` should represent the same path but have different
         # string representations.
-        # pyre-fixme[6]: For 1st param expected `Union[PathLike[str], str]` but got
-        #  `Optional[str]`.
         _file1 = os.path.join(self._tmpdir, _filename)
-        # pyre-fixme[6]: For 1st param expected `Union[PathLike[str], str]` but got
-        #  `Optional[str]`.
         _file2 = os.path.join(self._tmpdir, ".", _filename)
         self.assertNotEqual(_file1, _file2)
         try:
@@ -161,8 +153,6 @@ class TestNativeIOAsync(unittest.TestCase):
             self.assertTrue(self._pathmgr.async_close())
 
     def test_async_consecutive_join_calls(self) -> None:
-        # pyre-fixme[6]: For 1st param expected `Union[PathLike[str], str]` but got
-        #  `Optional[str]`.
         _file = os.path.join(self._tmpdir, "async.txt")
         try:
             self.assertTrue(self._pathmgr.async_join())
@@ -186,8 +176,6 @@ class TestNativeIOAsync(unittest.TestCase):
             self.assertTrue(self._pathmgr.async_close())
 
     def test_opena_mode_restriction(self) -> None:
-        # pyre-fixme[6]: For 1st param expected `Union[PathLike[str], str]` but got
-        #  `Optional[str]`.
         _file = os.path.join(self._tmpdir, "async.txt")
         with self.assertRaises(ValueError):
             self._pathmgr.opena(_file, "r")
@@ -197,8 +185,6 @@ class TestNativeIOAsync(unittest.TestCase):
             self._pathmgr.opena(_file, "wrb")
 
     def test_opena_args_passed_correctly(self) -> None:
-        # pyre-fixme[6]: For 1st param expected `Union[PathLike[str], str]` but got
-        #  `Optional[str]`.
         _file = os.path.join(self._tmpdir, "async.txt")
         try:
             # Make sure that `opena` args are used correctly by using
@@ -216,11 +202,7 @@ class TestNativeIOAsync(unittest.TestCase):
             self.assertEqual(f.read(), "1\r\n2\n3")
 
     def test_opena_with_callback(self) -> None:
-        # pyre-fixme[6]: For 1st param expected `Union[PathLike[str], str]` but got
-        #  `Optional[str]`.
         _file_tmp = os.path.join(self._tmpdir, "async.txt.tmp")
-        # pyre-fixme[6]: For 1st param expected `Union[PathLike[str], str]` but got
-        #  `Optional[str]`.
         _file = os.path.join(self._tmpdir, "async.txt")
         _data = "Asynchronously written text"
 
@@ -254,8 +236,6 @@ class TestNativeIOAsync(unittest.TestCase):
             self.assertEqual(f.read(), _data)
 
     def test_opena_with_callback_only_called_once(self) -> None:
-        # pyre-fixme[6]: For 1st param expected `Union[PathLike[str], str]` but got
-        #  `Optional[str]`.
         _file_tmp = os.path.join(self._tmpdir, "async.txt.tmp")
 
         mock_cb = Mock()
@@ -286,8 +266,6 @@ class TestNativeIOAsync(unittest.TestCase):
 
         # Opening a file with `opena` initializes the manager with the
         # executor.
-        # pyre-fixme[6]: For 1st param expected `Union[PathLike[str], str]` but got
-        #  `Optional[str]`.
         _file = os.path.join(self._tmpdir, "async.txt")
         try:
             with self._pathmgr.opena(_file, "w") as f:
@@ -301,8 +279,6 @@ class TestNativeIOAsync(unittest.TestCase):
             self.assertTrue(self._pathmgr.async_close())
 
     def test_non_blocking_io_seekable(self) -> None:
-        # pyre-fixme[6]: For 1st param expected `Union[PathLike[str], str]` but got
-        #  `Optional[str]`.
         _file = os.path.join(self._tmpdir, "async.txt")
         # '^' marks the current position in stream
 
@@ -371,8 +347,6 @@ class TestNonBlockingIO(unittest.TestCase):
         self.assertEqual(self._buffered_io_manager._IO, NonBlockingBufferedIO)
 
     def test_io_manager(self) -> None:
-        # pyre-fixme[6]: For 1st param expected `Union[PathLike[str], str]` but got
-        #  `Optional[str]`.
         _file = os.path.join(self._tmpdir, "non_buffered.txt")
 
         try:
@@ -404,8 +378,6 @@ class TestNonBlockingIO(unittest.TestCase):
             self.assertEqual(f.read(), "." * 6)
 
     def test_buffered_io_manager(self) -> None:
-        # pyre-fixme[6]: For 1st param expected `Union[PathLike[str], str]` but got
-        #  `Optional[str]`.
         _file = os.path.join(self._tmpdir, "buffered.txt")
 
         try:
