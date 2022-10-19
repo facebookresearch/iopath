@@ -12,8 +12,7 @@ import re
 import unittest
 import uuid
 from contextlib import contextmanager
-from unittest.mock import patch
-from tempfile import TemporaryDirectory, NamedTemporaryFile
+from tempfile import TemporaryDirectory
 from typing import NamedTuple
 
 from iopath.common.azure_blob import AzureBlobPathHandler, AzureBlobTokenProvider
@@ -180,7 +179,7 @@ class TestAzureBlob(unittest.TestCase):
 
             # Verify _ls
             actual = set(handler._ls(path))
-            expected = set([p.replace(ctx.container_path, "") for p in remote_paths])
+            expected = {p.replace(ctx.container_path, "") for p in remote_paths}
             self.assertEqual(actual, expected, f"Failed to _ls() at {path}")
 
     def test_get_local_path(self):
