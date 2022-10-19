@@ -19,6 +19,11 @@ from iopath.common.file_io import file_lock, get_cache_dir, PathHandler
 try:
     import azure.core.exceptions as azure_exceptions
     import azure.storage.blob as azure_blob
+
+    # Reduce noise by suppresssing HTTP logging in the client by default
+    logging.getLogger("azure.core.pipeline.policies.http_logging_policy").setLevel(
+        logging.WARNING
+    )
 except ImportError:
     azure_exceptions = None
     azure_blob = None
