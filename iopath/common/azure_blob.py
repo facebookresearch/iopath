@@ -397,7 +397,7 @@ class AzureBlobPathHandler(PathHandler):
         _, _, blob = self._parse_uri(path)
         return os.path.join(get_cache_dir(self.cache_dir), self.CACHE_SUBDIR_NAME, blob)
 
-    def _get_local_path(self, path: str, **kwargs: Any) -> str:
+    def _get_local_path(self, path: str, force: bool = False, **kwargs: Any) -> str:
         """
         Get a filepath which is compatible with native Python I/O such as `open`
         and `os.path`.
@@ -428,7 +428,7 @@ class AzureBlobPathHandler(PathHandler):
                     os.path.getmtime(local_path)
                 ).astimezone()
 
-                if remote_modified <= local_modified:
+                if remote_modified <= local_modified and not force:
                     logger.info(
                         "URL {} was already cached in {}".format(path, local_path)
                     )
