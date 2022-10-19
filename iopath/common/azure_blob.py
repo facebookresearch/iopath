@@ -578,7 +578,10 @@ class AzureBlobPathHandler(PathHandler):
             return False
 
     def _wait_for_copy(
-        self, blob: azure_blob.BlobClient, timeout_secs=1800, polling_secs=30
+        self,
+        blob,  # azure_blob.BlobClient
+        timeout_secs=1800,
+        polling_secs=30,
     ) -> bool:
         props = blob.get_blob_properties()
         deadline = int(datetime.utcnow().timestamp()) + timeout_secs
