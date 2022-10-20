@@ -172,13 +172,17 @@ class TestAzureBlob(unittest.TestCase):
             # Verify _exists for directory
             path = os.path.join(ctx.base_path, "testdir/")
             self.assertTrue(handler._exists(path))
+            path = os.path.join(ctx.base_path, "testdir")
+            self.assertTrue(handler._exists(path))
+            path = os.path.join(ctx.base_path, "dne/")
+            self.assertFalse(handler._exists(path))
 
             # Verify _exists for file
             self.assertTrue(handler._exists(remote_paths[0]))
             self.assertFalse(handler._exists(os.path.join(ctx.base_path, "dne")))
 
             # Verify _ls
-            actual = set(handler._ls(path))
+            actual = set(handler._ls(os.path.join(ctx.base_path, "testdir/")))
             expected = {p.replace(ctx.container_path, "") for p in remote_paths}
             self.assertEqual(actual, expected, f"Failed to _ls() at {path}")
 
@@ -193,6 +197,15 @@ class TestAzureBlob(unittest.TestCase):
             remote_paths = [os.path.join(remote_dir, f) for f in filenames]
             for i in range(len(filenames)):
                 handler._copy_from_local(local_paths[i], remote_paths[i])
+
+            # Verify _get_local_path for directory
+            download_dir = handler._get_local_path(remote_dir)
+            for filename in filenames:
+                expected_file = os.path.join(download_dir, filename)
+                self.assertTrue(
+                    os.path.exists(expected_file),
+                    f"Expected file to exist: {expected_file}",
+                )
 
             # Verify _get_local_path for file
             download_path = handler._get_local_path(remote_paths[0])

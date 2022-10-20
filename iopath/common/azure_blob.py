@@ -346,9 +346,6 @@ class AzureBlobPathHandler(PathHandler):
         """
         self._check_kwargs(kwargs)
 
-        if path.endswith("/"):
-            return False
-
         try:
             props = self._get_blob_properties(path)
             return props is not None
@@ -366,12 +363,12 @@ class AzureBlobPathHandler(PathHandler):
         """
         self._check_kwargs(kwargs)
 
-        if not path.endswith("/"):
-            return False
+        _, _, dirpath = self._parse_uri(path)
 
         try:
-            _ = next(self._enumerate_blobs(path))
-            return True
+            # Enumeration should find at least 1 longer child path
+            blob = next(self._enumerate_blobs(path))
+            return len(blob.name) > len(dirpath)
         except StopIteration:
             return False
         except azure_exceptions.AzureError as e:
@@ -417,12 +414,18 @@ class AzureBlobPathHandler(PathHandler):
         """
         self._check_kwargs(kwargs)
 
-        if path.endswith("/"):
-            raise NotImplementedError(
-                "AzureBlobPathHandler does not currently support downloading directories"
-            )
-        assert self._isfile(path)
+        assert self._exists(path)
+        account, container, _ = self._parse_uri(path)
+        result_path = self._local_cache_path(path)
 
+        # TODO: this can be parallelized for directories
+        for blob in self._enumerate_blobs(path):
+            blob_path = os.path.join("az://", account, container, blob.name)
+            self._get_local_path_single(blob_path, force=force)
+
+        return result_path
+
+    def _get_local_path_single(self, path: str, force: bool = False) -> str:
         local_path = self._local_cache_path(path)
         with file_lock(local_path):
             if os.path.exists(local_path):
