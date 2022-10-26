@@ -32,7 +32,7 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
-DEFAULT_CHUNK_SIZE = 4 * 1024 * 1024
+DEFAULT_CHUNK_SIZE = 50 * 1024 * 1024
 
 
 class AzureBlobTokenProvider:
@@ -409,6 +409,7 @@ class AzureBlobPathHandler(PathHandler):
         Therefore this function is meant to be used with read-only resources.
         Args:
             path (str): A URI supported by this PathHandler
+            force(bool): Forces a download from backend if set to True.
         Returns:
             local_path (str): a file path which exists on the local file system
         """
