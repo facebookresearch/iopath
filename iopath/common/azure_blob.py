@@ -36,11 +36,34 @@ DEFAULT_CHUNK_SIZE = 50 * 1024 * 1024
 
 
 class AzureBlobTokenProvider:
+    """
+    Base class for Azure SAS token providers.
+
+    The token should grant sufficient access to list, read, and write blobs in the target storage container.
+
+    More information on setting up access policies and generating a SAS token here:
+    https://learn.microsoft.com/en-us/rest/api/storageservices/delegate-access-with-shared-access-signature
+    https://learn.microsoft.com/en-us/azure/cognitive-services/translator/document-translation/create-sas-tokens
+    """
     @abstractmethod
     def get_sas_token(self, account: str) -> str:
         """
         Returns a SAS token for the specified storage account
         """
+
+
+ENV_SAS_TOKEN = "AZURE_STORAGE_SAS_TOKEN"
+
+
+class EnvironmentTokenProvider(AzureBlobTokenProvider):
+    """
+    Loads the SAS token from environment variable `AZURE_STORAGE_SAS_TOKEN`.
+    """
+    def get_sas_token(self, _: str) -> str:
+        assert (
+            ENV_SAS_TOKEN in os.environ
+        ), f"Missing required env variable: {ENV_SAS_TOKEN}"
+        return os.environ[ENV_SAS_TOKEN]
 
 
 class AzureBlobReader(io.RawIOBase):
@@ -250,18 +273,18 @@ class AzureBlobPathHandler(PathHandler):
 
     def __init__(
         self,
-        token_provider: AzureBlobTokenProvider,
+        token_provider: Optional[AzureBlobTokenProvider] = None,
         cache_dir: Optional[str] = None,
     ):
         """
         Args:
-            cache_dir (str): Local filesystem directory to use for caching. If None,
-                uses default from `file_io.get_cache_dir()`.
             token_provider (AzureBlobTokenProvider): provider used to generate SAS tokens
                 for authenticating with Blob Storage.
+            cache_dir (str): Local filesystem directory to use for caching. If None,
+                uses default from `file_io.get_cache_dir()`.
         """
+        self.token_provider = token_provider or EnvironmentTokenProvider()
         self.cache_dir = cache_dir
-        self.token_provider = token_provider
 
     def _get_supported_prefixes(self) -> List[str]:
         return self.SUPPORTED_PREFIXES

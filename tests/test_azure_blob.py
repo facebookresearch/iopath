@@ -15,7 +15,7 @@ from contextlib import contextmanager
 from tempfile import TemporaryDirectory
 from typing import NamedTuple
 
-from iopath.common.azure_blob import AzureBlobPathHandler, AzureBlobTokenProvider
+from iopath.common.azure_blob import AzureBlobPathHandler, EnvironmentTokenProvider, ENV_SAS_TOKEN
 
 
 try:
@@ -28,16 +28,7 @@ logging.basicConfig(
     format="%(asctime)s %(message)s", datefmt="%m/%d/%Y %I:%M:%S %p", level=logging.INFO
 )
 
-ENV_SAS_TOKEN = "AZURE_STORAGE_SAS_TOKEN"
 ENV_BASE_PATH = "AZURE_TEST_BASE_PATH"
-
-
-class EnvironmentTokenProvider(AzureBlobTokenProvider):
-    def get_sas_token(self, _: str) -> str:
-        assert (
-            ENV_SAS_TOKEN in os.environ
-        ), f"Missing required env variable: {ENV_SAS_TOKEN}"
-        return os.environ[ENV_SAS_TOKEN]
 
 
 class TestContext(NamedTuple):
