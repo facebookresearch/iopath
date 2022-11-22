@@ -15,7 +15,11 @@ from contextlib import contextmanager
 from tempfile import TemporaryDirectory
 from typing import NamedTuple
 
-from iopath.common.azure_blob import AzureBlobPathHandler, EnvironmentTokenProvider, ENV_SAS_TOKEN
+from iopath.common.azure_blob import (
+    AzureBlobPathHandler,
+    EnvironmentTokenProvider,
+    ENV_SAS_TOKEN,
+)
 
 
 try:

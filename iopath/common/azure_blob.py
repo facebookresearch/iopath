@@ -45,6 +45,7 @@ class AzureBlobTokenProvider:
     https://learn.microsoft.com/en-us/rest/api/storageservices/delegate-access-with-shared-access-signature
     https://learn.microsoft.com/en-us/azure/cognitive-services/translator/document-translation/create-sas-tokens
     """
+
     @abstractmethod
     def get_sas_token(self, account: str) -> str:
         """
@@ -59,6 +60,7 @@ class EnvironmentTokenProvider(AzureBlobTokenProvider):
     """
     Loads the SAS token from environment variable `AZURE_STORAGE_SAS_TOKEN`.
     """
+
     def get_sas_token(self, _: str) -> str:
         assert (
             ENV_SAS_TOKEN in os.environ
