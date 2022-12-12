@@ -17,11 +17,18 @@ setup(
     description="A library for providing I/O abstraction.",
     python_requires=">=3.6",
     install_requires=[
-        "boto3",
-        "google-cloud-storage",
         "tqdm",
+        "typing_extensions",
         "portalocker",
         "dataclasses; python_version<'3.7'",
     ],
+    extras_require={
+        "aws": [
+            "boto3",
+        ],
+        "gcs": [
+            "google-cloud-storage"
+        ],
+    },
     packages=find_packages(exclude=("tests",)),
 )

@@ -14,9 +14,12 @@ import time
 from iopath.common.file_io import PathManager
 
 
+# pyre-fixme[5]: Global expression must be annotated.
 logger = logging.getLogger(__name__)
 
 
+# pyre-fixme[3]: Return type must be annotated.
+# pyre-fixme[2]: Parameter must be annotated.
 def printx(str):
     logger.warning(f"[{time.strftime('%X')}] {str}")
 

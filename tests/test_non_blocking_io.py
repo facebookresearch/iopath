@@ -28,6 +28,8 @@ class TestNativeIOAsync(unittest.TestCase):
     _tmpdir: Optional[str] = None
     _pathmgr = PathManager()
 
+    # pyre-fixme[3]: Return type must be annotated.
+    # pyre-fixme[2]: Parameter must be annotated.
     def run(self, result=None):
         with patch("iopath.common.event_logger.EventLogger.log_event"):
             super(TestNativeIOAsync, self).run(result)
@@ -204,6 +206,10 @@ class TestNativeIOAsync(unittest.TestCase):
         _file = os.path.join(self._tmpdir, "async.txt")
         _data = "Asynchronously written text"
 
+        # pyre-fixme[53]: Captured variable `_data` is not annotated.
+        # pyre-fixme[53]: Captured variable `_file` is not annotated.
+        # pyre-fixme[53]: Captured variable `_file_tmp` is not annotated.
+        # pyre-fixme[3]: Return type must be annotated.
         def cb():
             # Insert a test to make sure `_file_tmp` was closed before
             # the callback is called.
@@ -349,7 +355,11 @@ class TestNonBlockingIO(unittest.TestCase):
                 path=_file, io_obj=open(_file, "w")
             )
             with patch.object(
-                f, "_notify_manager", wraps=f._notify_manager
+                f,
+                "_notify_manager",
+                # pyre-fixme[16]: Item `IO` of `Union[IO[bytes], IO[str]]` has no
+                #  attribute `_notify_manager`.
+                wraps=f._notify_manager,
             ) as mock_notify_manager:
                 f.write("." * 1)
                 f.write("." * 2)
@@ -377,7 +387,11 @@ class TestNonBlockingIO(unittest.TestCase):
             )
             with patch.object(f, "flush", wraps=f.flush) as mock_flush:
                 with patch.object(
-                    f, "_notify_manager", wraps=f._notify_manager
+                    f,
+                    "_notify_manager",
+                    # pyre-fixme[16]: Item `IO` of `Union[IO[bytes], IO[str]]` has
+                    #  no attribute `_notify_manager`.
+                    wraps=f._notify_manager,
                 ) as mock_notify_manager:
                     f.write(b"." * 9)
                     mock_flush.assert_not_called()  # buffer not filled - don't flush
@@ -387,6 +401,8 @@ class TestNonBlockingIO(unittest.TestCase):
                     mock_flush.assert_called_once()  # buffer filled - should flush
                     # `flush` should notify manager 4 times: 3 `file.write` and 1 `buffer.close`.
                     # Buffer is split into 3 chunks of size 10, 10, and 2.
+                    # pyre-fixme[16]: Item `IO` of `Union[IO[bytes], IO[str]]` has
+                    #  no attribute `_buffers`.
                     self.assertEqual(len(f._buffers), 2)  # 22-byte and 0-byte buffers
                     self.assertEqual(mock_notify_manager.call_count, 4)
                     mock_notify_manager.reset_mock()

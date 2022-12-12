@@ -17,6 +17,7 @@ from iopath.common.file_io import PathManager
 
 
 class Model(nn.Module):
+    # pyre-fixme[3]: Return type must be annotated.
     def __init__(self):
         super(Model, self).__init__()
         self.conv1 = nn.Conv2d(3, 6, 5)
@@ -56,6 +57,9 @@ class TestDriver:
                         "optimizer_state_dict": optimizer.state_dict(),
                         "large": large,
                     },
+                    # pyre-fixme[6]: For 2nd param expected
+                    #  `Union[PathLike[typing.Any], IO[bytes], str, BinaryIO]` but got
+                    #  `IOBase`.
                     f,
                 )
                 f.close()

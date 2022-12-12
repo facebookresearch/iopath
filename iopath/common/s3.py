@@ -8,14 +8,17 @@ import shutil
 import types
 from datetime import datetime, timedelta
 from functools import partial
-from typing import IO, Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, IO, List, Optional, Tuple, Union
 
-from iopath.common.file_io import PathHandler, file_lock, get_cache_dir
+from iopath.common.file_io import file_lock, get_cache_dir, PathHandler
 
 
 try:
     # Needed for S3 PathHandler
+    # pyre-fixme[21]: Could not find module `boto3`.
     import boto3
+
+    # pyre-fixme[21]: Could not find module `botocore`.
     import botocore
 except ImportError:
     boto3 = None
@@ -23,7 +26,8 @@ except ImportError:
 
 
 # Override for close() on files to write to Amazon S3
-def s3_close_and_upload(self, client, bucket, s3_path, transfer_config):
+# pyre-fixme[2]: Parameter must be annotated.
+def s3_close_and_upload(self, client, bucket, s3_path, transfer_config) -> None:
     # Seek to start, for use by upload_fileobj.
     self.seek(0)
 
@@ -83,10 +87,13 @@ class S3PathHandler(PathHandler):
     S3_PREFIX = "s3://"
     CACHE_SUBDIR_NAME = "s3_cache"
 
+    # pyre-fixme[3]: Return type must be annotated.
     def __init__(
         self,
         cache_dir: Optional[str] = None,
         profile: Optional[str] = "saml",
+        # pyre-fixme[24]: Generic type `dict` expects 2 type parameters, use
+        #  `typing.Dict` to avoid runtime subscripting errors.
         transfer_config_kwargs: Optional[Dict] = None,
     ):
         """
@@ -99,8 +106,10 @@ class S3PathHandler(PathHandler):
         """
         self.cache_dir = cache_dir
         self.profile = profile
+        # pyre-fixme[21]: Could not find module `boto3.s3.transfer`.
         from boto3.s3.transfer import TransferConfig
 
+        # pyre-fixme[4]: Attribute must be annotated.
         self.transfer_config = TransferConfig(
             **(transfer_config_kwargs if transfer_config_kwargs else {})
         )
@@ -128,11 +137,13 @@ class S3PathHandler(PathHandler):
         path = "/".join(splits[1:])
         return bucket, path
 
+    # pyre-fixme[3]: Return type must be annotated.
     def _get_client(self, bucket: str):
         logger = logging.getLogger(__name__)
         if not hasattr(self, "client"):
             try:
                 session = boto3.Session(profile_name=self.profile)
+                # pyre-fixme[16]: `S3PathHandler` has no attribute `client`.
                 self.client = session.client("s3")
             except botocore.exceptions.NoCredentialsError as e:
                 logger.error(
@@ -169,6 +180,7 @@ class S3PathHandler(PathHandler):
 
         return self.client
 
+    # pyre-fixme[3]: Return type must be annotated.
     def _local_cache_path(
         self,
         path: str,
@@ -186,6 +198,8 @@ class S3PathHandler(PathHandler):
             get_cache_dir(self.cache_dir), self.CACHE_SUBDIR_NAME, file_path
         )
 
+    # pyre-fixme[14]: `_get_local_path` overrides method defined in `PathHandler`
+    #  inconsistently.
     def _get_local_path(self, path: str, **kwargs: Any) -> str:
         """
         Get a filepath which is compatible with native Python I/O such as `open`
@@ -225,6 +239,8 @@ class S3PathHandler(PathHandler):
                     # local last modified timestamp, and would be improperly used.
                     # Better fix: set last modified time via the remote object's last modified time,
                     # in download_file().
+                    # pyre-fixme[58]: `>` is not supported for operand types
+                    #  `datetime` and `timedelta`.
                     if (local_dt - remote_dt) > dt.timedelta(minutes=0):
                         logger.info(
                             "URL {} was already cached in {}".format(path, local_path)
@@ -259,6 +275,8 @@ class S3PathHandler(PathHandler):
             logger.info("URL {} cached in {}".format(path, local_path))
             return local_path
 
+    # pyre-fixme[15]: `_copy_from_local` overrides method defined in `PathHandler`
+    #  inconsistently.
     def _copy_from_local(
         self, local_path: str, dst_path: str, overwrite: bool = False, **kwargs: Any
     ) -> bool:
@@ -281,6 +299,11 @@ class S3PathHandler(PathHandler):
                 "S3PathHandler does not currently support uploading directories"
             )
 
+        if not overwrite and self._exists(dst_path):
+            logger = logging.getLogger(__name__)
+            logger.error("Error: Destination path {} already exists.".format(dst_path))
+            return False
+
         bucket, s3_path = self._parse_uri(dst_path)
         client = self._get_client(bucket)
         try:
@@ -291,15 +314,19 @@ class S3PathHandler(PathHandler):
             logger.error("Error in file upload - {}".format(str(e)))
             return False
 
+    # pyre-fixme[3]: Return type must be annotated.
     def _decorate_buf_with_s3_methods(
         self,
         buffer: Union[IO[str], IO[bytes]],
+        # pyre-fixme[2]: Parameter annotation cannot be `Any`.
         client: Any,
         bucket: str,
         s3_path: str,
+        # pyre-fixme[2]: Parameter annotation cannot be `Any`.
         transfer_config: Any,
     ):
         # Save old close method.
+        # pyre-fixme[16]: `IO` has no attribute `_close`.
         buffer._close = buffer.close
 
         # Add in our new close method.
@@ -310,6 +337,16 @@ class S3PathHandler(PathHandler):
             s3_path=s3_path,
             transfer_config=transfer_config,
         )
+        # pyre-fixme[8]: Attribute has type
+        #  `BoundMethod[typing.Callable(IO.close)[[Named(self, IO[bytes])], None],
+        #  IO[bytes]]`; used as `MethodType`.
+        # pyre-fixme[8]: Attribute has type
+        #  `BoundMethod[typing.Callable(IO.close)[[Named(self, IO[str])], None],
+        #  IO[str]]`; used as `MethodType`.
+        # pyre-fixme[9]: close has type
+        #  `Union[BoundMethod[typing.Callable(IO.close)[[Named(self, IO[bytes])],
+        #  None], IO[bytes]], BoundMethod[typing.Callable(IO.close)[[Named(self,
+        #  IO[str])], None], IO[str]]]`; used as `MethodType`.
         buffer.close = types.MethodType(fn, buffer)
 
     def _open(
@@ -369,7 +406,9 @@ class S3PathHandler(PathHandler):
                 # 2. Set file-pointer to beginning of file.
                 buffer.seek(0)
             else:
+                # pyre-fixme[6]: For 3rd param expected `int` but got `str`.
                 buffer = S3ChunkReadIO(client, bucket, s3_path, read_chunk_size)
+            # pyre-fixme[16]: `S3PathHandler` has no attribute `length`.
             self.length = client.get_object(Bucket=bucket, Key=s3_path)["ContentLength"]
 
             # 3. Use convenient wrapper to make object look like StringIO,
@@ -379,6 +418,8 @@ class S3PathHandler(PathHandler):
             if "b" not in mode:
                 encoding = "utf-8"
                 return io.TextIOWrapper(
+                    # pyre-fixme[6]: For 1st param expected `IO[bytes]` but got
+                    #  `Union[S3ChunkReadIO, BytesIO]`.
                     buffer,
                     write_through=True,
                     encoding=encoding,
@@ -387,6 +428,8 @@ class S3PathHandler(PathHandler):
                     line_buffering=False,
                 )
             else:
+                # pyre-fixme[7]: Expected `Union[IO[bytes], IO[str]]` but got
+                #  `Union[S3ChunkReadIO, BytesIO]`.
                 return buffer
 
         elif "w" in mode:
@@ -423,6 +466,11 @@ class S3PathHandler(PathHandler):
         """
         self._check_kwargs(kwargs)
 
+        if not overwrite and self._exists(dst_path):
+            logger = logging.getLogger(__name__)
+            logger.error("Error: Destination path {} already exists.".format(dst_path))
+            return False
+
         src_bucket, src_s3_path = self._parse_uri(src_path)
         dst_bucket, dst_s3_path = self._parse_uri(dst_path)
         assert src_bucket == dst_bucket, "For now, can only _copy() within a bucket."
@@ -444,6 +492,8 @@ class S3PathHandler(PathHandler):
             logger.error("Error in file copy - {}".format(str(e)))
             return False
 
+    # pyre-fixme[24]: Generic type `dict` expects 2 type parameters, use
+    #  `typing.Dict` to avoid runtime subscripting errors.
     def _head_object(self, path: str) -> Optional[Dict]:
         bucket, s3_path = self._parse_uri(path)
         client = self._get_client(bucket)
@@ -574,28 +624,35 @@ class S3PathHandler(PathHandler):
 
 
 class S3ChunkReadIO(io.BufferedIOBase):
+    # pyre-fixme[4]: Attribute must be annotated.
     DEFAULT_CHUNK_SIZE = 50 * 1024 * 1024  # 50MB
 
+    # pyre-fixme[3]: Return type must be annotated.
     def __init__(
         self,
+        # pyre-fixme[2]: Parameter must be annotated.
         client,
         bucket: str,
         key: int,
         chunk_size: int = DEFAULT_CHUNK_SIZE,
         timeout: Optional[timedelta] = None,
     ):
+        # pyre-fixme[4]: Attribute must be annotated.
         self.client = client
         self.bucket = bucket
         self.key = key
+        # pyre-fixme[4]: Attribute must be annotated.
         self.timeout = timeout.total_seconds() if timeout is not None else None
         self.chunk_size = chunk_size
         self.offset = 0
         self.buffered_window = range(0, 0)
         self.buffer = io.BytesIO()
+        # pyre-fixme[4]: Attribute must be annotated.
         self.length = client.get_object(Bucket=bucket, Key=key)["ContentLength"]
 
     @property
     def name(self) -> str:
+        # pyre-fixme[16]: `S3ChunkReadIO` has no attribute `path`.
         return self.path
 
     def seekable(self) -> bool:
@@ -665,6 +722,10 @@ class S3ChunkReadIO(io.BufferedIOBase):
         """
         raise OSError("can't truncate readonly stream")
 
+    # pyre-fixme[14]: `write` overrides method defined in `BufferedIOBase`
+    #  inconsistently.
+    # pyre-fixme[15]: `write` overrides method defined in `BufferedIOBase`
+    #  inconsistently.
     def write(self, b: Union[bytes, bytearray]) -> Optional[int]:
         """
         Write bytes b to in-memory buffer, return number written.
@@ -680,6 +741,8 @@ class S3ChunkReadIO(io.BufferedIOBase):
     def read1(self, size: int = -1) -> bytes:
         return self.read(size)
 
+    # pyre-fixme[14]: `read` overrides method defined in `BufferedIOBase`
+    #  inconsistently.
     def read(self, size: int = -1) -> bytes:
         """
         Read and return up to size bytes. If the argument is omitted, None, or negative,
@@ -713,6 +776,7 @@ class S3ChunkReadIO(io.BufferedIOBase):
                 range(self.offset, min(self.offset + size - len(ret) - 1, self.length))
             )
             self.offset += len(output)
+            # pyre-fixme[7]: Expected `bytes` but got `bytearray`.
             return ret + output
 
         # otherwise download the next chunk from s3, update buffer and buffered window
@@ -740,6 +804,7 @@ class S3ChunkReadIO(io.BufferedIOBase):
         for chunk in streaming_body.iter_chunks(chunk_size=self.chunk_size):
             ret += chunk
         streaming_body.close()
+        # pyre-fixme[7]: Expected `bytes` but got `bytearray`.
         return ret
 
     def _read_chunk_to_buffer(self, start_offset: int) -> None:
@@ -756,6 +821,3 @@ class S3ChunkReadIO(io.BufferedIOBase):
         self.buffer.seek(0)
         self.buffer.write(ret)
         self.buffered_window = download_range
-
-    def read1(self, size: int = -1) -> bytes:
-        return self.read(size)

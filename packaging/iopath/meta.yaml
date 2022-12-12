@@ -12,6 +12,7 @@ requirements:
     - setuptools
 
   run:
+    - typing_extensions
     - python
     - tqdm
     - portalocker
@@ -19,7 +20,7 @@ requirements:
 
 build:
   string: py{{py}}
-  script: BUILD_NIGHTLY=1 python setup.py install --single-version-externally-managed --record=record.txt # [not win]
+  script: BUILD_NIGHTLY=1 ${PYTHON} setup.py install --single-version-externally-managed --record=record.txt # [not win]
 
 about:
   home: https://github.com/facebookresearch/iopath
