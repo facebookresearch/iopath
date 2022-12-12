@@ -254,14 +254,8 @@ class GcsPathHandler(PathHandler):
             file: a file-like object.
         """
         self._check_kwargs(kwargs)
-        assert (
-            buffering == -1
-        ), f"{self.__class__.__name__} does not support the `buffering` argument"
 
-        if "r" in mode:
-            local_path = self._get_local_path(path)
-            return open(local_path, mode)
-        if "w" in mode:
+        if "r" in mode or "w" in mode:
             blob = self._get_blob(path)
             return blob.open(mode=mode)
         else:
