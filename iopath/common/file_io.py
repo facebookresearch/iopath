@@ -253,7 +253,7 @@ class PathHandler(EventLogger):
 
     def _copy_from_local(
         self, local_path: str, dst_path: str, overwrite: bool = False, **kwargs: Any
-    ) -> None:
+    ) -> Optional[bool]:
         """
         Copies a local file to the specified URI.
 

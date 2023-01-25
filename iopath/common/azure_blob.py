@@ -575,8 +575,6 @@ class AzureBlobPathHandler(PathHandler):
         """
         pass
 
-    # pyre-fixme[15]: `_copy_from_local` overrides method defined in `PathHandler`
-    #  inconsistently.
     def _copy_from_local(
         self, local_path: str, dst_path: str, overwrite: bool = False, **kwargs: Any
     ) -> bool:
