@@ -249,6 +249,7 @@ class NonBlockingIO(io.IOBase):
         #  bytes]`.
         self._notify_manager(lambda: self._io.write(b))
 
+    # pyre-fixme[14]: `seek` overrides method defined in `IOBase` inconsistently.
     def seek(self, offset: int, whence: int = 0) -> int:
         """
         Called on `f.seek()`.

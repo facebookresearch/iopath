@@ -129,6 +129,7 @@ class AzureBlobReader(io.RawIOBase):
     def seekable(self) -> bool:
         return False
 
+    # pyre-fixme[14]: `seek` overrides method defined in `IOBase` inconsistently.
     def seek(self, offset: int, whence: int = os.SEEK_SET) -> int:
         raise io.UnsupportedOperation()
 
@@ -138,6 +139,7 @@ class AzureBlobReader(io.RawIOBase):
     def readable(self) -> bool:
         return True
 
+    # pyre-fixme[14]: `read` overrides method defined in `RawIOBase` inconsistently.
     def read(self, size: int = -1) -> bytes:
         if size < 0:
             return self.readall()
@@ -149,6 +151,7 @@ class AzureBlobReader(io.RawIOBase):
         return stream.getvalue()
 
     # pyre-ignore[2]: stream is any bytes-like object
+    # pyre-fixme[14]: `readinto` overrides method defined in `RawIOBase` inconsistently.
     def readinto(self, stream) -> None:
         size = self._chunk_size
         data = self._get_chunk_data(size)
@@ -161,9 +164,11 @@ class AzureBlobReader(io.RawIOBase):
         return False
 
     # pyre-ignore[2]: b is any bytes-like object
+    # pyre-fixme[14]: `write` overrides method defined in `RawIOBase` inconsistently.
     def write(self, b) -> int:
         raise io.UnsupportedOperation()
 
+    # pyre-fixme[14]: `truncate` overrides method defined in `IOBase` inconsistently.
     def truncate(self, size: Optional[int]) -> int:
         raise io.UnsupportedOperation()
 
@@ -217,6 +222,7 @@ class AzureBlobWriter(io.RawIOBase):
     def seekable(self) -> bool:
         return False
 
+    # pyre-fixme[14]: `seek` overrides method defined in `IOBase` inconsistently.
     def seek(self, offset: int, whence: int = os.SEEK_SET) -> int:
         raise io.UnsupportedOperation()
 
@@ -226,6 +232,7 @@ class AzureBlobWriter(io.RawIOBase):
     def readable(self) -> bool:
         return False
 
+    # pyre-fixme[14]: `read` overrides method defined in `RawIOBase` inconsistently.
     def read(self, size: int = -1) -> bytes:
         raise io.UnsupportedOperation()
 
@@ -233,6 +240,7 @@ class AzureBlobWriter(io.RawIOBase):
         raise io.UnsupportedOperation()
 
     # pyre-ignore[2]: stream is any bytes-like object
+    # pyre-fixme[14]: `readinto` overrides method defined in `RawIOBase` inconsistently.
     def readinto(self, stream) -> None:
         raise io.UnsupportedOperation()
 
@@ -240,9 +248,11 @@ class AzureBlobWriter(io.RawIOBase):
         return True
 
     # pyre-ignore[2]: b is any bytes-like object
+    # pyre-fixme[14]: `write` overrides method defined in `RawIOBase` inconsistently.
     def write(self, b) -> int:
         return self._append_to_chunk(b)
 
+    # pyre-fixme[14]: `truncate` overrides method defined in `IOBase` inconsistently.
     def truncate(self, size: Optional[int]) -> int:
         raise io.UnsupportedOperation()
 
@@ -475,6 +485,10 @@ class AzureBlobPathHandler(PathHandler):
 
         # TODO: this can be parallelized for directories
         for blob in self._enumerate_blobs(path):
+            # pyre-fixme[62]: For 2nd argument expected `LiteralString` but got
+            #  `str`. Ensure only a string literal or a `LiteralString` is used.
+            # pyre-fixme[62]: For 3rd argument expected `LiteralString` but got
+            #  `str`. Ensure only a string literal or a `LiteralString` is used.
             blob_path = os.path.join("az://", account, container, blob.name)
             self._get_local_path_single(blob_path, force=force)
 
