@@ -347,7 +347,6 @@ class S3PathHandler(PathHandler):
         #  IO[str])], None], IO[str]]]`; used as `MethodType`.
         buffer.close = types.MethodType(fn, buffer)
 
-    # pyre-fixme[14]: `_open` overrides method defined in `PathHandler` inconsistently.
     def _open(
         self,
         path: str,
@@ -682,7 +681,6 @@ class S3ChunkReadIO(io.BufferedIOBase):
     def fileno(self) -> int:
         raise AttributeError()
 
-    # pyre-fixme[14]: `seek` overrides method defined in `IOBase` inconsistently.
     def seek(self, offset: int, whence: int = 0) -> int:
         """
         Change stream position.
@@ -712,7 +710,6 @@ class S3ChunkReadIO(io.BufferedIOBase):
         """Return an int indicating the current stream position."""
         return self.offset
 
-    # pyre-fixme[14]: `truncate` overrides method defined in `IOBase` inconsistently.
     def truncate(self, size: Optional[int] = None) -> int:
         """
         Truncate file to size bytes.
@@ -739,8 +736,6 @@ class S3ChunkReadIO(io.BufferedIOBase):
         """
         pass
 
-    # pyre-fixme[14]: `read1` overrides method defined in `BufferedIOBase`
-    #  inconsistently.
     def read1(self, size: int = -1) -> bytes:
         return self.read(size)
 

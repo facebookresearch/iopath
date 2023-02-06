@@ -587,7 +587,6 @@ class NativePathHandler(PathHandler):
             src_path=local_path, dst_path=dst_path, overwrite=overwrite, **kwargs
         )
 
-    # pyre-fixme[14]: `_open` overrides method defined in `PathHandler` inconsistently.
     def _open(
         self,
         path: str,
@@ -804,8 +803,6 @@ class HTTPURLHandler(PathHandler):
     def _get_supported_prefixes(self) -> List[str]:
         return ["http://", "https://", "ftp://"]
 
-    # pyre-fixme[14]: `_get_local_path` overrides method defined in `PathHandler`
-    #  inconsistently.
     def _get_local_path(
         self,
         path: str,
