@@ -183,6 +183,7 @@ class NonBlockingIOManager:
 
 
 # NOTE: We currently only support asynchronous writes (not reads).
+# pyre-fixme[13]: Attribute `read` is never initialized.
 class NonBlockingIO(io.IOBase):
     def __init__(
         self,
@@ -292,6 +293,7 @@ class NonBlockingIO(io.IOBase):
 
 # NOTE: To use this class, use `buffered=True` in `NonBlockingIOManager`.
 # NOTE: This class expects the IO mode to be buffered.
+# pyre-fixme[13]: Attribute `read` is never initialized.
 class NonBlockingBufferedIO(io.IOBase):
     # pyre-fixme[4]: Attribute must be annotated.
     MAX_BUFFER_BYTES = 10 * 1024 * 1024  # 10 MiB
