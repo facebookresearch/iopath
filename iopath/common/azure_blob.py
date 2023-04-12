@@ -129,6 +129,7 @@ class AzureBlobReader(io.RawIOBase):
     def seekable(self) -> bool:
         return False
 
+    # pyre-fixme[14]: `seek` overrides method defined in `IOBase` inconsistently.
     def seek(self, offset: int, whence: int = os.SEEK_SET) -> int:
         raise io.UnsupportedOperation()
 
@@ -149,6 +150,7 @@ class AzureBlobReader(io.RawIOBase):
         return stream.getvalue()
 
     # pyre-ignore[2]: stream is any bytes-like object
+    # pyre-fixme[14]: `readinto` overrides method defined in `RawIOBase` inconsistently.
     def readinto(self, stream) -> None:
         size = self._chunk_size
         data = self._get_chunk_data(size)
@@ -161,9 +163,11 @@ class AzureBlobReader(io.RawIOBase):
         return False
 
     # pyre-ignore[2]: b is any bytes-like object
+    # pyre-fixme[14]: `write` overrides method defined in `RawIOBase` inconsistently.
     def write(self, b) -> int:
         raise io.UnsupportedOperation()
 
+    # pyre-fixme[14]: `truncate` overrides method defined in `IOBase` inconsistently.
     def truncate(self, size: Optional[int]) -> int:
         raise io.UnsupportedOperation()
 
@@ -217,6 +221,7 @@ class AzureBlobWriter(io.RawIOBase):
     def seekable(self) -> bool:
         return False
 
+    # pyre-fixme[14]: `seek` overrides method defined in `IOBase` inconsistently.
     def seek(self, offset: int, whence: int = os.SEEK_SET) -> int:
         raise io.UnsupportedOperation()
 
@@ -233,6 +238,7 @@ class AzureBlobWriter(io.RawIOBase):
         raise io.UnsupportedOperation()
 
     # pyre-ignore[2]: stream is any bytes-like object
+    # pyre-fixme[14]: `readinto` overrides method defined in `RawIOBase` inconsistently.
     def readinto(self, stream) -> None:
         raise io.UnsupportedOperation()
 
@@ -240,9 +246,11 @@ class AzureBlobWriter(io.RawIOBase):
         return True
 
     # pyre-ignore[2]: b is any bytes-like object
+    # pyre-fixme[14]: `write` overrides method defined in `RawIOBase` inconsistently.
     def write(self, b) -> int:
         return self._append_to_chunk(b)
 
+    # pyre-fixme[14]: `truncate` overrides method defined in `IOBase` inconsistently.
     def truncate(self, size: Optional[int]) -> int:
         raise io.UnsupportedOperation()
 
