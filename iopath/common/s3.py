@@ -681,7 +681,6 @@ class S3ChunkReadIO(io.BufferedIOBase):
     def fileno(self) -> int:
         raise AttributeError()
 
-    # pyre-fixme[14]: `seek` overrides method defined in `IOBase` inconsistently.
     def seek(self, offset: int, whence: int = 0) -> int:
         """
         Change stream position.
