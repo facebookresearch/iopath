@@ -355,7 +355,7 @@ class TestHTTPIO(unittest.TestCase):
         # HTTPURLHandler does not support writing, only reading.
         with self.assertRaises(AssertionError):
             with self._pathmgr.open(self._remote_uri, "w") as f:
-                f.write("foobar")  # pyre-ignore
+                f.write("foobar")
 
     def test_open_new_path_manager(self) -> None:
         with self._patch_download():
