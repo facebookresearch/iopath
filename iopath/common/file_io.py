@@ -21,6 +21,7 @@ from typing import (
     List,
     MutableMapping,
     Optional,
+    overload,
     Set,
     Type,
     Union,
@@ -31,7 +32,7 @@ import portalocker  # type: ignore
 from iopath.common.download import download
 from iopath.common.event_logger import EventLogger, VTYPE
 from iopath.common.non_blocking_io import NonBlockingIOManager
-from typing_extensions import Protocol
+from typing_extensions import Literal, Protocol
 
 
 __all__ = ["LazyPath", "PathManager", "get_cache_dir", "file_lock"]
@@ -1033,6 +1034,26 @@ class PathManager:
             A TabularIO context manager object
         """
         return self.__get_path_handler(path)._opent(path, mode, buffering, **kwargs)
+
+    @overload
+    def open(
+        self,
+        path: str,
+        mode: Literal["rb", "wb", "ab", "xb", "r+b", "w+b", "a+b", "x+b"] = ...,
+        buffering: int = ...,
+        **kwargs: Any,
+    ) -> IO[bytes]:
+        ...
+
+    @overload
+    def open(
+        self,
+        path: str,
+        mode: Literal["r", "w", "a", "x", "r+", "w+", "a+", "x+", "rt", "wt"] = ...,
+        buffering: int = ...,
+        **kwargs: Any,
+    ) -> IO[str]:
+        ...
 
     def open(
         self, path: str, mode: str = "r", buffering: int = -1, **kwargs: Any
