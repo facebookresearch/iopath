@@ -827,6 +827,10 @@ class HTTPURLHandler(PathHandler):
                 get_cache_dir(cache_dir), os.path.dirname(parsed_url.path.lstrip("/"))
             )
             filename = path.split("/")[-1]
+
+            if parsed_url.query:
+                filename = filename.split("?").pop(0)
+
             if len(filename) > self.MAX_FILENAME_LEN:
                 filename = filename[:100] + "_" + uuid.uuid4().hex
 
