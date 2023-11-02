@@ -88,7 +88,11 @@ class TestDriver:
             print("Async `torch.save` Test succeeded.")
 
 
-if __name__ == "__main__":
+def main() -> None:
     print("Async `torch.save` Test starting.")
     tst = TestDriver()
     tst.test()
+
+
+if __name__ == "__main__":
+    main()

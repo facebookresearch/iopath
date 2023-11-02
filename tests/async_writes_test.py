@@ -71,7 +71,11 @@ class TestDriver:
             )
 
 
-if __name__ == "__main__":
+def main() -> None:
     printx("Async Writes Test starting.")
     tst = TestDriver()
     tst.test()
+
+
+if __name__ == "__main__":
+    main()
