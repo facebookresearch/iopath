@@ -720,8 +720,6 @@ class S3ChunkReadIO(io.BufferedIOBase):
         """
         raise OSError("can't truncate readonly stream")
 
-    # pyre-fixme[14]: `write` overrides method defined in `BufferedIOBase`
-    #  inconsistently.
     # pyre-fixme[15]: `write` overrides method defined in `BufferedIOBase`
     #  inconsistently.
     def write(self, b: Union[bytes, bytearray]) -> Optional[int]:
