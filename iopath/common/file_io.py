@@ -155,20 +155,17 @@ class TabularIO(Protocol):
     Context Manager interface to be used by PathHandler methods.
     """
 
-    def __enter__(self) -> "TabularIO":
-        ...
+    def __enter__(self) -> "TabularIO": ...
 
     def __exit__(
         self,
         exc_type: Optional[Type[BaseException]],
         exc_val: Optional[BaseException],
         exc_tb: Optional[TracebackType],
-    ) -> None:
-        ...
+    ) -> None: ...
 
     # pyre-fixme[3]: Return annotation cannot contain `Any`.
-    def __iter__(self) -> Iterator[Any]:
-        ...
+    def __iter__(self) -> Iterator[Any]: ...
 
 
 class PathHandler(EventLogger):
@@ -1046,8 +1043,7 @@ class PathManager:
         mode: Literal["rb", "wb", "ab", "xb", "r+b", "w+b", "a+b", "x+b"] = ...,
         buffering: int = ...,
         **kwargs: Any,
-    ) -> IO[bytes]:
-        ...
+    ) -> IO[bytes]: ...
 
     @overload
     def open(
@@ -1056,8 +1052,7 @@ class PathManager:
         mode: Literal["r", "w", "a", "x", "r+", "w+", "a+", "x+", "rt", "wt"] = ...,
         buffering: int = ...,
         **kwargs: Any,
-    ) -> IO[str]:
-        ...
+    ) -> IO[str]: ...
 
     def open(
         self, path: str, mode: str = "r", buffering: int = -1, **kwargs: Any
