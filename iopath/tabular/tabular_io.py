@@ -1,5 +1,7 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
 
+# pyre-strict
+
 from typing import Any
 
 from iopath.common.file_io import PathHandler, TabularIO

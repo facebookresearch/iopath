@@ -1,5 +1,7 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
 
+# pyre-strict
+
 """
     Utility for testing async writes with `NativePathHandler`.
     Usage:

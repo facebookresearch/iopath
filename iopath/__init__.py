@@ -1,5 +1,7 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
 
+# pyre-strict
+
 from iopath.common import file_lock, get_cache_dir, LazyPath, PathManager
 from iopath.tabular.tabular_io import TabularPathHandler, TabularUriParser
 
