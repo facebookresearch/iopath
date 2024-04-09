@@ -964,9 +964,9 @@ class PathManager:
             handler (PathHandler)
         """
         path = os.fspath(path)  # pyre-ignore
-        for p in self._path_handlers.keys():
+        for p, handler in self._path_handlers.items():
             if path.startswith(p):
-                return self._path_handlers[p]
+                return handler
         return self._native_path_handler
 
     def __log_tmetry_keys(self, handler: PathHandler, kvs: Dict[str, VTYPE]) -> None:
