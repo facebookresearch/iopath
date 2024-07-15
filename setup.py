@@ -26,6 +26,9 @@ setup(
         "aws": [
             "boto3",
         ],
+        "gcs": [
+            "google-cloud-storage"
+        ],
     },
     packages=find_packages(exclude=("tests",)),
 )
