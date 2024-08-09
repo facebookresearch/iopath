@@ -14,7 +14,11 @@ class TabularUriParser:
 
 class TabularPathHandler(PathHandler):
     def _opent(
-        self, path: str, mode: str = "r", buffering: int = 32, **kwargs: Any
-    ) -> TabularIO:
+        self,
+        path: str,
+        mode: str = "r",
+        buffering: int = 32,
+        **kwargs: Any
         # pyre-fixme[7]: Expected `TabularIO` but got implicit return value of `None`.
+    ) -> TabularIO:
         assert mode == "r"

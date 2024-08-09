@@ -303,6 +303,7 @@ class PathHandler(EventLogger):
         callback_after_file_close: Optional[Callable[[None], None]] = None,
         buffering: int = -1,
         **kwargs: Any,
+        # pyre-fixme[7]: Expected `IOBase` but got implicit return value of `None`.
     ) -> IOBase:
         """
         Open a file with asynchronous methods. `f.write()` calls will be dispatched
@@ -380,8 +381,6 @@ class PathHandler(EventLogger):
                 "is most likely due to invalid `opena` args. Make sure "
                 "they match the `open` args for the `PathHandler`."
             )
-            # pyre-fixme[7]: Expected `Union[IO[bytes], IO[str]]` but got implicit
-            #  return value of `None`.
             self._async_close()
 
     def _async_join(self, path: Optional[str] = None, **kwargs: Any) -> bool:

@@ -252,11 +252,11 @@ class NonBlockingIO(io.IOBase):
         #  bytes]`.
         self._notify_manager(lambda: self._io.write(b))
 
+    # pyre-fixme[7]: Expected `int` but got implicit return value of `None`.
     def seek(self, offset: int, whence: int = 0) -> int:
         """
         Called on `f.seek()`.
         """
-        # pyre-fixme[7]: Expected `int` but got implicit return value of `None`.
         # pyre-fixme[6]: For 1st param expected `() -> None` but got `() -> int`.
         self._notify_manager(lambda: self._io.seek(offset, whence))
 
@@ -268,11 +268,11 @@ class NonBlockingIO(io.IOBase):
 
     # pyre-fixme[14]: `truncate` overrides method defined in `IOBase` inconsistently.
     # pyre-fixme[9]: size has type `int`; used as `None`.
+    # pyre-fixme[7]: Expected `int` but got implicit return value of `None`.
     def truncate(self, size: int = None) -> int:
         """
         Called on `f.truncate()`.
         """
-        # pyre-fixme[7]: Expected `int` but got implicit return value of `None`.
         # pyre-fixme[6]: For 1st param expected `() -> None` but got `() -> int`.
         self._notify_manager(lambda: self._io.truncate(size))
 

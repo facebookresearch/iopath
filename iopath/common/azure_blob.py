@@ -403,6 +403,8 @@ class AzureBlobPathHandler(PathHandler):
         try:
             props = self._get_blob_properties(path)
             return props is not None
+        # pyre-fixme[66]: Exception handler type annotation `unknown` must extend
+        #  BaseException.
         except azure_exceptions.AzureError as e:
             logger = logging.getLogger(__name__)
             logger.exception(e)
@@ -426,6 +428,8 @@ class AzureBlobPathHandler(PathHandler):
             return len(blob.name) > len(dirpath)
         except StopIteration:
             return False
+        # pyre-fixme[66]: Exception handler type annotation `unknown` must extend
+        #  BaseException.
         except azure_exceptions.AzureError as e:
             logger = logging.getLogger(__name__)
             logger.exception(e)
@@ -613,6 +617,8 @@ class AzureBlobPathHandler(PathHandler):
             try:
                 blob_client.upload_blob(src_file, length=src_length)
                 return True
+            # pyre-fixme[66]: Exception handler type annotation `unknown` must
+            #  extend BaseException.
             except azure_exceptions.AzureError as e:
                 logger = logging.getLogger(__name__)
                 logger.error(f"Error in file upload - {str(e)}")
@@ -647,6 +653,8 @@ class AzureBlobPathHandler(PathHandler):
         try:
             _ = dst_blob.start_copy_from_url(src_uri)
             return self._wait_for_copy(dst_blob)
+        # pyre-fixme[66]: Exception handler type annotation `unknown` must extend
+        #  BaseException.
         except azure_exceptions.AzureError as e:
             logger = logging.getLogger(__name__)
             logger.exception(e)
@@ -686,6 +694,8 @@ class AzureBlobPathHandler(PathHandler):
 
         try:
             blob_client.delete_blob()
+        # pyre-fixme[66]: Exception handler type annotation `unknown` must extend
+        #  BaseException.
         except azure_exceptions.AzureError as e:
             raise OSError(
                 f"Error in rm path {path} - " f"{type(e).__name__}: {e}"

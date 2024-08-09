@@ -49,6 +49,8 @@ def s3_close_and_upload(self, client, bucket, s3_path, transfer_config) -> None:
             s3_path,
             Config=transfer_config,
         )
+    # pyre-fixme[66]: Exception handler type annotation `unknown` must extend
+    #  BaseException.
     except botocore.exceptions.ClientError as e:
         raise OSError(f"Error in file upload - {e}" f"{type(e).__name__}: {e}") from e
 
@@ -147,6 +149,8 @@ class S3PathHandler(PathHandler):
                 session = boto3.Session(profile_name=self.profile)
                 # pyre-fixme[16]: `S3PathHandler` has no attribute `client`.
                 self.client = session.client("s3")
+            # pyre-fixme[66]: Exception handler type annotation `unknown` must
+            #  extend BaseException.
             except botocore.exceptions.NoCredentialsError as e:
                 logger.error(
                     " See https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html "
@@ -309,6 +313,8 @@ class S3PathHandler(PathHandler):
         try:
             client.upload_file(local_path, bucket, s3_path, Config=self.transfer_config)
             return True
+        # pyre-fixme[66]: Exception handler type annotation `unknown` must extend
+        #  BaseException.
         except botocore.exceptions.ClientError as e:
             logger = logging.getLogger(__name__)
             logger.error("Error in file upload - {}".format(str(e)))
@@ -397,6 +403,8 @@ class S3PathHandler(PathHandler):
                     client.download_fileobj(
                         bucket, s3_path, buffer, Config=self.transfer_config
                     )
+                # pyre-fixme[66]: Exception handler type annotation `unknown` must
+                #  extend BaseException.
                 except botocore.exceptions.ClientError as e:
                     raise OSError(
                         f"Error in making s3 client for bucekt {bucket}"
@@ -487,6 +495,8 @@ class S3PathHandler(PathHandler):
                 Config=self.transfer_config,
             )
             return True
+        # pyre-fixme[66]: Exception handler type annotation `unknown` must extend
+        #  BaseException.
         except botocore.exceptions.ClientError as e:
             logger = logging.getLogger(__name__)
             logger.error("Error in file copy - {}".format(str(e)))
@@ -502,6 +512,8 @@ class S3PathHandler(PathHandler):
             # Raises exception if not exists, else it exists.
             response = client.head_object(Bucket=bucket, Key=s3_path)
             return response
+        # pyre-fixme[66]: Exception handler type annotation `unknown` must extend
+        #  BaseException.
         except botocore.exceptions.ClientError as e:
             if e.response["Error"]["Message"] == "Bad Request":
                 raise OSError(
@@ -577,6 +589,8 @@ class S3PathHandler(PathHandler):
                 for obj in page.get("CommonPrefixes", [])
             ]
             return obj_results + dir_results
+        # pyre-fixme[66]: Exception handler type annotation `unknown` must extend
+        #  BaseException.
         except botocore.exceptions.ClientError as e:
             raise OSError(
                 f"Error in ls path {path} - " f"{type(e).__name__}: {e}"
@@ -599,6 +613,8 @@ class S3PathHandler(PathHandler):
 
         try:
             client.put_object(Bucket=bucket, Key=s3_path)
+        # pyre-fixme[66]: Exception handler type annotation `unknown` must extend
+        #  BaseException.
         except botocore.exceptions.ClientError as e:
             raise OSError(
                 f"Error in mkdirs path {path} - " f"{type(e).__name__}: {e}"
@@ -617,6 +633,8 @@ class S3PathHandler(PathHandler):
 
         try:
             client.delete_object(Bucket=bucket, Key=s3_path)
+        # pyre-fixme[66]: Exception handler type annotation `unknown` must extend
+        #  BaseException.
         except botocore.exceptions.ClientError as e:
             raise OSError(
                 f"Error in rm path {path} - " f"{type(e).__name__}: {e}"
