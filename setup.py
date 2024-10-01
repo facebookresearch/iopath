@@ -17,6 +17,7 @@ setup(
     description="A library for providing I/O abstraction.",
     python_requires=">=3.6",
     install_requires=[
+        "aiofiles",
         "tqdm",
         "typing_extensions",
         "portalocker",

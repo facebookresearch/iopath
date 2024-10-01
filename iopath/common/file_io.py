@@ -30,6 +30,8 @@ from typing import (
 )
 from urllib.parse import urlparse
 
+import aiofiles
+
 import portalocker  # type: ignore
 from iopath.common.download import download
 from iopath.common.event_logger import EventLogger, VTYPE
@@ -557,6 +559,50 @@ class PathHandler(EventLogger):
         return path
 
 
+class NativeAsyncReader(IOBase):
+    """Reads a file asynchronously on the native file system."""
+
+    def __init__(
+        self,
+        path: str,
+        mode: str,
+        buffering: int,
+        callback_after_file_close: Optional[Callable[[None], None]] = None,
+        **kwargs: Any,
+    ) -> None:
+        self._path = path
+        self._mode = mode
+        self._buffering = buffering
+        self._callback_after_file_close = callback_after_file_close
+        self._kwargs: Any = kwargs  # pyre-ignore[4]
+
+    async def read(self) -> bytes | str:
+        async with aiofiles.open(
+            file=self._path, mode=self._mode, buffering=self._buffering, **self._kwargs
+        ) as fp:
+            return await fp.read()
+
+    def write(self) -> None:
+        raise NotImplementedError()
+
+    def readable(self) -> bool:
+        return True
+
+    def writable(self) -> bool:
+        return False
+
+    def __enter__(self) -> "NativeAsyncReader":
+        return self
+
+    def __exit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> None:
+        pass
+
+
 class NativePathHandler(PathHandler):
     """
     Handles paths that can be accessed using Python native system calls. This
@@ -648,6 +694,49 @@ class NativePathHandler(PathHandler):
             newline=newline,
             closefd=closefd,
             opener=opener,
+        )
+
+    def _opena(
+        self,
+        path: str,
+        mode: str = "r",
+        buffering: int = -1,
+        callback_after_file_close: Optional[Callable[[None], None]] = None,
+        encoding: Optional[str] = None,
+        errors: Optional[str] = None,
+        newline: Optional[str] = None,
+        closefd: bool = True,
+        # pyre-fixme[24]: Generic type `Callable` expects 2 type parameters.
+        opener: Optional[Callable] = None,
+        **kwargs: Any,
+    ) -> IOBase:
+        self._check_kwargs(kwargs)
+        if "w" in mode or "a" in mode:
+            # Base class provides a universal implemenation for writes
+            return super()._opena(
+                path,
+                mode,
+                callback_after_file_close,
+                buffering,
+                encoding=encoding,
+                errors=errors,
+                newline=newline,
+                closefd=closefd,
+                opener=opener,
+                **kwargs,
+            )
+        assert mode in ("r", "rb"), mode
+        return NativeAsyncReader(
+            path,
+            mode,
+            buffering,
+            callback_after_file_close,
+            encoding=encoding,
+            errors=errors,
+            newline=newline,
+            closefd=closefd,
+            opener=opener,
+            **kwargs,
         )
 
     def _copy(

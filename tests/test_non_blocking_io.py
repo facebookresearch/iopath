@@ -187,17 +187,6 @@ class TestNativeIOAsync(unittest.TestCase):
         finally:
             self.assertTrue(self._pathmgr.async_close())
 
-    def test_opena_mode_restriction(self) -> None:
-        # pyre-fixme[6]: For 1st argument expected `typing_extensions.LiteralString`
-        #  but got `Optional[str]`.
-        _file = os.path.join(self._tmpdir, "async.txt")
-        with self.assertRaises(ValueError):
-            self._pathmgr.opena(_file, "r")
-        with self.assertRaises(ValueError):
-            self._pathmgr.opena(_file, "rb")
-        with self.assertRaises(ValueError):
-            self._pathmgr.opena(_file, "wrb")
-
     def test_opena_args_passed_correctly(self) -> None:
         # pyre-fixme[6]: For 1st argument expected `typing_extensions.LiteralString`
         #  but got `Optional[str]`.

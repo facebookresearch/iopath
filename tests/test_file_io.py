@@ -2,7 +2,9 @@
 
 # pyre-strict
 
+import asyncio
 import os
+import pickle
 import shutil
 import tempfile
 import unittest
@@ -293,6 +295,28 @@ class TestNativeIO(unittest.TestCase):
             f.write(self._tmpfile_contents)
             f.flush()
         self._pathmgr.rm(rm_file, foo="foo")  # type: ignore
+
+    def test_open_read_async(self) -> None:
+        # Test reading a binary file.
+        with self.subTest("read binary"):
+            test_data = {
+                "test_string": "test string",
+                1: 1,
+                1.0: 1.0,
+                True: True,
+            }
+            tmp_binary_path = os.path.join(self._tmpdir, "test_binary.bin")  # type: ignore
+            pickle.dump(test_data, open(tmp_binary_path, "wb"))
+            reader = self._pathmgr.opena(tmp_binary_path, "rb")
+            buf = asyncio.run(reader.read())
+            results = pickle.loads(buf)
+            self.assertEqual(test_data, results)
+
+        # Test reading a text file.
+        with self.subTest("read text"):
+            reader = self._pathmgr.opena(self._tmpfile, "r")  # type: ignore
+            buf = asyncio.run(reader.read())
+            self.assertEqual(self._tmpfile_contents, buf, "is " + buf)
 
 
 class TestHTTPIO(unittest.TestCase):
