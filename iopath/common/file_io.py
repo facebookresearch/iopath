@@ -624,13 +624,14 @@ class NativePathHandler(PathHandler):
 
     def _copy_from_local(
         self, local_path: str, dst_path: str, overwrite: bool = False, **kwargs: Any
-    ) -> None:
+    ) -> bool:
         self._check_kwargs(kwargs)
         local_path = self._get_path_with_cwd(local_path)
         dst_path = self._get_path_with_cwd(dst_path)
         assert self._copy(
             src_path=local_path, dst_path=dst_path, overwrite=overwrite, **kwargs
         )
+        return True
 
     def _open(
         self,
