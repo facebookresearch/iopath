@@ -576,7 +576,7 @@ class NativeAsyncReader(IOBase):
         self._callback_after_file_close = callback_after_file_close
         self._kwargs: Any = kwargs  # pyre-ignore[4]
 
-    async def read(self) -> bytes | str:
+    async def read(self) -> Union[bytes, str]:
         async with aiofiles.open(
             file=self._path, mode=self._mode, buffering=self._buffering, **self._kwargs
         ) as fp:
