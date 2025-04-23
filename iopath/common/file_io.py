@@ -630,7 +630,7 @@ class NativePathHandler(PathHandler):
         dst_path = self._get_path_with_cwd(dst_path)
         assert self._copy(
             src_path=local_path, dst_path=dst_path, overwrite=overwrite, **kwargs
-        )
+        ), f"Failed to copy from {local_path} to {dst_path} with overwrite={overwrite} and kwargs={kwargs}"
         return True
 
     def _open(
