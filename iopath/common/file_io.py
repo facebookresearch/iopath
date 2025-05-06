@@ -277,6 +277,11 @@ class PathHandler(EventLogger):
     ) -> TabularIO:
         raise NotImplementedError()
 
+    def _openw(
+        self, path: str, mode: str = "w", buffering: int = 32, **kwargs: Any
+    ) -> TabularIO:
+        raise NotImplementedError()
+
     def _open(
         self, path: str, mode: str = "r", buffering: int = -1, **kwargs: Any
     ) -> Union[IO[str], IO[bytes]]:
@@ -1126,6 +1131,22 @@ class PathManager:
             A TabularIO context manager object
         """
         return self.__get_path_handler(path)._opent(path, mode, buffering, **kwargs)
+
+    def openw(
+        self, path: str, mode: str = "w", buffering: int = -1, **kwargs: Any
+    ) -> TabularIO:
+        """
+        Open a writable data source. Only writing is supported.
+        The openw() returns the same object as opent()
+
+        Args:
+            path (str): A URI supported by this PathHandler
+            mode (str): Specifies the mode in which the file is opened.
+
+        Returns:
+            A TabularIO context manager object
+        """
+        return self.__get_path_handler(path)._openw(path, mode, buffering, **kwargs)
 
     @overload
     def open(

@@ -22,3 +22,13 @@ class TabularPathHandler(PathHandler):
         # pyre-fixme[7]: Expected `TabularIO` but got implicit return value of `None`.
     ) -> TabularIO:
         assert mode == "r"
+
+    def _openw(
+        self,
+        path: str,
+        mode: str = "w",
+        buffering: int = 32,
+        **kwargs: Any
+        # pyre-ignore[7]: Expected `TabularIO` but got implicit return value of `None`.
+    ) -> TabularIO:
+        assert mode == "w"
