@@ -1046,10 +1046,13 @@ class PathManager:
         """
 
     # pyre-fixme[24]: Generic type `os.PathLike` expects 1 type parameter.
-    def __get_path_handler(self, path: Union[str, os.PathLike]) -> PathHandler:
+    def get_path_handler(self, path: Union[str, os.PathLike]) -> PathHandler:
         """
         Finds a PathHandler that supports the given path. Falls back to the native
         PathHandler if no other handler is found.
+
+        This method is used internally by PathManager. It is exposed for debugging purposes,
+            and to allow users to provide more informative logging.
 
         Args:
             path (str or os.PathLike): URI path to resource
@@ -1130,7 +1133,7 @@ class PathManager:
         Returns:
             A TabularIO context manager object
         """
-        return self.__get_path_handler(path)._opent(path, mode, buffering, **kwargs)
+        return self.get_path_handler(path)._opent(path, mode, buffering, **kwargs)
 
     def openw(
         self, path: str, mode: str = "w", buffering: int = -1, **kwargs: Any
@@ -1146,7 +1149,7 @@ class PathManager:
         Returns:
             A TabularIO context manager object
         """
-        return self.__get_path_handler(path)._openw(path, mode, buffering, **kwargs)
+        return self.get_path_handler(path)._openw(path, mode, buffering, **kwargs)
 
     @overload
     def open(
@@ -1185,7 +1188,7 @@ class PathManager:
         Returns:
             file: a file-like object.
         """
-        handler = self.__get_path_handler(path)
+        handler = self.get_path_handler(path)
         # pass enable mode to handler that will be logging
         # read, write operations separately.
         handler.set_logging(self._enable_logging)
@@ -1247,7 +1250,7 @@ class PathManager:
         if "w" in mode:
             kwargs["callback_after_file_close"] = callback_after_file_close
             kwargs["buffering"] = buffering
-        non_blocking_io = self.__get_path_handler(path)._opena(
+        non_blocking_io = self.get_path_handler(path)._opena(
             path,
             mode,
             **kwargs,
@@ -1255,7 +1258,7 @@ class PathManager:
         if "w" in mode:
             # Keep track of the path handlers where `opena` is used so that all of the
             # threads can be properly joined on `PathManager.join`.
-            self._async_handlers.add(self.__get_path_handler(path))
+            self._async_handlers.add(self.get_path_handler(path))
         return non_blocking_io
 
     def async_join(self, *paths: str, **kwargs: Any) -> bool:
@@ -1286,8 +1289,7 @@ class PathManager:
         else:  # Join specific paths.
             for path in paths:
                 success = (
-                    self.__get_path_handler(path)._async_join(path, **kwargs)
-                    and success
+                    self.get_path_handler(path)._async_join(path, **kwargs) and success
                 )
         return success
 
@@ -1321,12 +1323,12 @@ class PathManager:
             status (bool): True on success
         """
 
-        if self.__get_path_handler(src_path) != self.__get_path_handler(  # type: ignore
+        if self.get_path_handler(src_path) != self.get_path_handler(  # type: ignore
             dst_path
         ):
             return self._copy_across_handlers(src_path, dst_path, overwrite, **kwargs)
 
-        handler = self.__get_path_handler(src_path)
+        handler = self.get_path_handler(src_path)
         bret = handler._copy(src_path, dst_path, overwrite, **kwargs)
         kvs = {"op": "copy", "path": src_path, "dst_path": dst_path}
         self.__log_tmetry_keys(handler, kvs)
@@ -1349,12 +1351,10 @@ class PathManager:
         """
 
         # Moving across handlers is not supported.
-        assert self.__get_path_handler(  # type: ignore
-            src_path
-        ) == self.__get_path_handler(
+        assert self.get_path_handler(src_path) == self.get_path_handler(  # type: ignore
             dst_path
         ), "Src and dest paths must be supported by the same path handler."
-        handler = self.__get_path_handler(src_path)
+        handler = self.get_path_handler(src_path)
         bret = handler._mv(src_path, dst_path, **kwargs)
         kvs = {"op": "mv", "path": src_path, "dst_path": dst_path}
         self.__log_tmetry_keys(handler, kvs)
@@ -1376,7 +1376,7 @@ class PathManager:
             local_path (str): a file path which exists on the local file system
         """
         path = os.fspath(path)
-        handler = self.__get_path_handler(path)  # type: ignore
+        handler = self.get_path_handler(path)  # type: ignore
         try:
             bret = handler._get_local_path(path, force=force, **kwargs)
         except TypeError:
@@ -1405,7 +1405,7 @@ class PathManager:
             status (bool): True on success
         """
         assert os.path.exists(local_path), f"local_path = {local_path}"
-        handler = self.__get_path_handler(dst_path)
+        handler = self.get_path_handler(dst_path)
 
         kvs = {
             "op": "copy_from_local",
@@ -1432,7 +1432,7 @@ class PathManager:
         Returns:
             bool: true if the path exists
         """
-        handler = self.__get_path_handler(path)
+        handler = self.get_path_handler(path)
         bret = handler._exists(path, **kwargs)  # type: ignore
         kvs = {"op": "exists", "path": path}
         self.__log_tmetry_keys(handler, kvs)
@@ -1448,7 +1448,7 @@ class PathManager:
         Returns:
             bool: true if the path is a file
         """
-        handler = self.__get_path_handler(path)
+        handler = self.get_path_handler(path)
         bret = handler._isfile(path, **kwargs)  # type: ignore
         kvs = {"op": "isfile", "path": path}
         self.__log_tmetry_keys(handler, kvs)
@@ -1464,7 +1464,7 @@ class PathManager:
         Returns:
             bool: true if the path is a directory
         """
-        handler = self.__get_path_handler(path)
+        handler = self.get_path_handler(path)
         bret = handler._isdir(path, **kwargs)  # type: ignore
         kvs = {"op": "isdir", "path": path}
         self.__log_tmetry_keys(handler, kvs)
@@ -1480,7 +1480,7 @@ class PathManager:
         Returns:
             List[str]: list of contents in given path
         """
-        return self.__get_path_handler(path)._ls(path, **kwargs)
+        return self.get_path_handler(path)._ls(path, **kwargs)
 
     def mkdirs(self, path: str, **kwargs: Any) -> None:
         """
@@ -1491,7 +1491,7 @@ class PathManager:
         Args:
             path (str): A URI supported by this PathHandler
         """
-        handler = self.__get_path_handler(path)
+        handler = self.get_path_handler(path)
         bret = handler._mkdirs(path, **kwargs)  # type: ignore
         kvs = {"op": "mkdirs", "path": path}
         self.__log_tmetry_keys(handler, kvs)
@@ -1504,7 +1504,7 @@ class PathManager:
         Args:
             path (str): A URI supported by this PathHandler
         """
-        handler = self.__get_path_handler(path)
+        handler = self.get_path_handler(path)
         bret = handler._rm(path, **kwargs)  # type: ignore
         kvs = {"op": "rm", "path": path}
         self.__log_tmetry_keys(handler, kvs)
@@ -1518,10 +1518,10 @@ class PathManager:
             dst_path (str): A URI supported by this PathHandler to symlink to
         """
         # Copying across handlers is not supported.
-        assert self.__get_path_handler(  # type: ignore
-            src_path
-        ) == self.__get_path_handler(dst_path)
-        handler = self.__get_path_handler(src_path)
+        assert self.get_path_handler(src_path) == self.get_path_handler(  # type: ignore
+            dst_path
+        )
+        handler = self.get_path_handler(src_path)
         bret = handler._symlink(src_path, dst_path, **kwargs)  # type: ignore
         kvs = {"op": "symlink", "path": src_path, "dst_path": dst_path}
         self.__log_tmetry_keys(handler, kvs)
@@ -1543,8 +1543,8 @@ class PathManager:
             return True
         # pyre-fixme[6]: For 1st param expected `Union[PathLike[typing.Any], str]`
         #  but got `Optional[str]`.
-        handler = self.__get_path_handler(path or self._cwd)
-        if self.__get_path_handler(path or self._cwd)._set_cwd(path, **kwargs):  # type: ignore
+        handler = self.get_path_handler(path or self._cwd)
+        if self.get_path_handler(path or self._cwd)._set_cwd(path, **kwargs):  # type: ignore
             self._cwd = path
             bret = True
         else:
@@ -1649,9 +1649,9 @@ class PathManager:
     def _copy_across_handlers(
         self, src_path: str, dst_path: str, overwrite: bool, **kwargs: Any
     ) -> bool:
-        src_handler = self.__get_path_handler(src_path)
+        src_handler = self.get_path_handler(src_path)
         assert src_handler._get_local_path is not None
-        dst_handler = self.__get_path_handler(dst_path)
+        dst_handler = self.get_path_handler(dst_path)
         assert dst_handler._copy_from_local is not None
 
         local_file = src_handler._get_local_path(src_path, **kwargs)
