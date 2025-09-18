@@ -8,7 +8,7 @@ import os
 import shutil
 import tempfile
 import unittest
-from typing import Optional
+from typing import cast, Optional
 from unittest.mock import Mock, patch
 
 from iopath.common.file_io import NativePathHandler, PathManager
@@ -374,9 +374,7 @@ class TestNonBlockingIO(unittest.TestCase):
             with patch.object(
                 f,
                 "_notify_manager",
-                # pyre-fixme[16]: Item `IO` of `Union[IO[bytes], IO[str]]` has no
-                #  attribute `_notify_manager`.
-                wraps=f._notify_manager,
+                wraps=cast(NonBlockingIO, f)._notify_manager,
             ) as mock_notify_manager:
                 f.write("." * 1)
                 f.write("." * 2)
