@@ -491,16 +491,12 @@ class S3PathHandler(PathHandler):
                 Config=self.transfer_config,
             )
             return True
-        # pyre-fixme[66]: Exception handler type annotation `unknown` must extend
-        #  BaseException.
-        except botocore.exceptions.ClientError as e:
+        except Exception as e:
             logger = logging.getLogger(__name__)
             logger.error("Error in file copy - {}".format(str(e)))
             return False
 
-    # pyre-fixme[24]: Generic type `dict` expects 2 type parameters, use
-    #  `typing.Dict` to avoid runtime subscripting errors.
-    def _head_object(self, path: str) -> Optional[Dict]:
+    def _head_object(self, path: str) -> Optional[Dict[str, Any]]:
         bucket, s3_path = self._parse_uri(path)
         client = self._get_client(bucket)
 
@@ -508,13 +504,19 @@ class S3PathHandler(PathHandler):
             # Raises exception if not exists, else it exists.
             response = client.head_object(Bucket=bucket, Key=s3_path)
             return response
-        # pyre-fixme[66]: Exception handler type annotation `unknown` must extend
-        #  BaseException.
-        except botocore.exceptions.ClientError as e:
-            if e.response["Error"]["Message"] == "Bad Request":
-                raise OSError(
-                    f"Error in checking s3 path {path} - " f"{type(e).__name__}: {e}"
-                ) from e
+        except Exception as e:
+            # Check if this is a ClientError with response attribute
+            response = getattr(e, "response", None)
+            if response is not None:
+                try:
+                    error_info = response.get("Error", {})
+                    if error_info.get("Message") == "Bad Request":
+                        raise OSError(
+                            f"Error in checking s3 path {path} - "
+                            f"{type(e).__name__}: {e}"
+                        ) from e
+                except (AttributeError, TypeError, KeyError):
+                    pass
             return None
 
     def _exists(self, path: str, **kwargs: Any) -> bool:
