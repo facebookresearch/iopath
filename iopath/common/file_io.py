@@ -101,8 +101,7 @@ def file_lock(path: str):  # type: ignore
     return portalocker.Lock(path + ".lock", timeout=3600)  # type: ignore
 
 
-# pyre-fixme[24]: Generic type `os.PathLike` expects 1 type parameter.
-class LazyPath(os.PathLike):
+class LazyPath(os.PathLike[str]):
     """
     A path that's lazily evaluated when it's used.
 
