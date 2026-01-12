@@ -3,9 +3,9 @@
 # pyre-strict
 
 """
-    Utility for testing async writes with `torch.save`.
-    Usage:
-        buck run @mode/opt //fair_infra/data/iopath/tests:async_torch_test
+Utility for testing async writes with `torch.save`.
+Usage:
+    buck run @mode/opt //fair_infra/data/iopath/tests:async_torch_test
 """
 
 import os

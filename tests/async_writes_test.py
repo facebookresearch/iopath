@@ -3,9 +3,9 @@
 # pyre-strict
 
 """
-    Utility for testing async writes with `NativePathHandler`.
-    Usage:
-        buck run @mode/opt //fair_infra/data/iopath/tests:async_writes_test
+Utility for testing async writes with `NativePathHandler`.
+Usage:
+    buck run @mode/opt //fair_infra/data/iopath/tests:async_writes_test
 """
 
 import logging

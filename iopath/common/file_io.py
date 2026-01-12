@@ -31,7 +31,6 @@ from typing import (
 from urllib.parse import urlparse
 
 import aiofiles
-
 import portalocker  # type: ignore
 from iopath.common.download import download
 from iopath.common.event_logger import EventLogger, VTYPE
