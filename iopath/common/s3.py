@@ -318,17 +318,14 @@ class S3PathHandler(PathHandler):
             logger.error("Error in file upload - {}".format(str(e)))
             return False
 
-    # pyre-fixme[3]: Return type must be annotated.
     def _decorate_buf_with_s3_methods(
         self,
         buffer: Union[IO[str], IO[bytes]],
-        # pyre-fixme[2]: Parameter annotation cannot be `Any`.
-        client: Any,
+        client: object,
         bucket: str,
         s3_path: str,
-        # pyre-fixme[2]: Parameter annotation cannot be `Any`.
-        transfer_config: Any,
-    ):
+        transfer_config: object,
+    ) -> None:
         # Save old close method.
         # pyre-fixme[16]: `IO` has no attribute `_close`.
         buffer._close = buffer.close
