@@ -737,8 +737,6 @@ class S3ChunkReadIO(io.BufferedIOBase):
 
     # pyre-fixme[15]: `write` overrides method defined in `BufferedIOBase`
     #  inconsistently.
-    # pyre-fixme[14]: `write` overrides method defined in `BufferedIOBase`
-    #  inconsistently.
     def write(self, b: Union[bytes, bytearray]) -> Optional[int]:
         """
         Write bytes b to in-memory buffer, return number written.

@@ -371,7 +371,6 @@ class AzureBlobPathHandler(PathHandler):
 
         return {k: v for k, v in props.items()}
 
-    # pyre-ignore[3]: delay referencing Azure types
     def _enumerate_blobs(self, path: str) -> Iterator[Any]:
         account, container, path_prefix = self._parse_uri(path)
         client = self._get_client(account)

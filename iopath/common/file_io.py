@@ -166,7 +166,6 @@ class TabularIO(Protocol):
         exc_tb: Optional[TracebackType],
     ) -> None: ...
 
-    # pyre-fixme[3]: Return annotation cannot contain `Any`.
     def __iter__(self) -> Iterator[Any]: ...
 
 
@@ -577,7 +576,7 @@ class NativeAsyncReader(IOBase):
         self._mode = mode
         self._buffering = buffering
         self._callback_after_file_close = callback_after_file_close
-        self._kwargs: Any = kwargs  # pyre-ignore[4]
+        self._kwargs: Any = kwargs
 
     async def read(self) -> Union[bytes, str]:
         async with aiofiles.open(
