@@ -115,6 +115,7 @@ class S3PathHandler(PathHandler):
 
         # pyre-fixme[4]: Attribute must be annotated.
         self.transfer_config = TransferConfig(
+            # pyrefly: ignore [bad-argument-type]
             **(transfer_config_kwargs if transfer_config_kwargs else {})
         )
 
@@ -146,6 +147,7 @@ class S3PathHandler(PathHandler):
         logger = logging.getLogger(__name__)
         if not hasattr(self, "client"):
             try:
+                # pyrefly: ignore [missing-attribute]
                 session = boto3.Session(profile_name=self.profile)
                 # pyre-fixme[16]: `S3PathHandler` has no attribute `client`.
                 self.client = session.client("s3")

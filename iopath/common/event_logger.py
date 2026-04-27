@@ -13,6 +13,7 @@ try:
 except ImportError:
     b_tmetry_available = False
 
+# pyrefly: ignore [invalid-type-var]
 VTYPE = TypeVar("T", str, int, bool, float)
 
 

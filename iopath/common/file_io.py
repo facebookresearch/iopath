@@ -406,6 +406,7 @@ class PathHandler(EventLogger):
                 "`opena` was not used."
             )
         self._check_kwargs(kwargs)
+        # pyrefly: ignore [missing-attribute]
         return self._non_blocking_io_manager._join(
             self._get_path_with_cwd(path) if path else None
         )
@@ -424,6 +425,7 @@ class PathHandler(EventLogger):
                 "`opena` was not used."
             )
         self._check_kwargs(kwargs)
+        # pyrefly: ignore [missing-attribute]
         return self._non_blocking_io_manager._close_thread_pool()
 
     def _copy(
@@ -579,6 +581,7 @@ class NativeAsyncReader(IOBase):
         self._kwargs: Any = kwargs
 
     async def read(self) -> Union[bytes, str]:
+        # pyrefly: ignore [no-matching-overload]
         async with aiofiles.open(
             file=self._path, mode=self._mode, buffering=self._buffering, **self._kwargs
         ) as fp:
@@ -699,6 +702,7 @@ class NativePathHandler(PathHandler):
             opener=opener,
         )
 
+    # pyrefly: ignore [bad-override]
     def _opena(
         self,
         path: str,
@@ -1105,6 +1109,7 @@ class PathManager:
             kvs["mode"] = "write"
         elif "a" in mode:
             kvs["mode"] = "append"
+        # pyrefly: ignore [unsupported-operation]
         kvs["buffering"] = buffering
         if "b" in mode:
             kvs["format"] = "binary"
@@ -1112,6 +1117,7 @@ class PathManager:
             kvs["format"] = "text"
         kvs["path"] = path
 
+        # pyrefly: ignore [bad-return]
         return kvs
 
     def opent(
@@ -1152,6 +1158,7 @@ class PathManager:
     def open(
         self,
         path: str,
+        # pyrefly: ignore [unsupported-operation]
         mode: Literal["rb", "wb", "ab", "xb", "r+b", "w+b", "a+b", "x+b"] = ...,
         buffering: int = ...,
         **kwargs: Any,
@@ -1161,6 +1168,7 @@ class PathManager:
     def open(
         self,
         path: str,
+        # pyrefly: ignore [unsupported-operation]
         mode: Literal["r", "w", "a", "x", "r+", "w+", "a+", "x+", "rt", "wt"] = ...,
         buffering: int = ...,
         **kwargs: Any,

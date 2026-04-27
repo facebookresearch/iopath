@@ -166,6 +166,7 @@ class AzureBlobReader(io.RawIOBase):
     def write(self, b) -> int:
         raise io.UnsupportedOperation()
 
+    # pyrefly: ignore [bad-override]
     def truncate(self, size: Optional[int]) -> int:
         raise io.UnsupportedOperation()
 
@@ -189,6 +190,7 @@ class AzureBlobWriter(io.RawIOBase):
         client,  # azure_blob.BlobClient,
         chunk_size: int,
     ) -> None:
+        # pyrefly: ignore [missing-attribute]
         self._client: azure_blob.BlobClient = client
         self._chunk_size = chunk_size
         self._chunk_idx = -1
@@ -245,6 +247,7 @@ class AzureBlobWriter(io.RawIOBase):
     def write(self, b) -> int:
         return self._append_to_chunk(b)
 
+    # pyrefly: ignore [bad-override]
     def truncate(self, size: Optional[int]) -> int:
         raise io.UnsupportedOperation()
 
@@ -268,6 +271,7 @@ class AzureBlobWriter(io.RawIOBase):
             block_length,
         )
         self._client.stage_block(block_id, self._chunk, block_length)
+        # pyrefly: ignore [missing-attribute]
         self._blocks.append(azure_blob.BlobBlock(block_id=block_id))
 
     def close(self) -> None:
@@ -357,6 +361,7 @@ class AzureBlobPathHandler(PathHandler):
         if not hasattr(self, "client"):
             account_uri = f"https://{account}.blob.core.windows.net"
             sas_token = self.token_provider.get_sas_token(account)
+            # pyrefly: ignore [missing-attribute]
             client = azure_blob.BlobServiceClient(account_uri, credential=sas_token)
             self.client = client
 

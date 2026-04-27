@@ -77,6 +77,7 @@ class TestNativeIO(unittest.TestCase):
             self.assertEqual(f.read(), self._tmpfile_contents)
 
     def test_factory_open(self) -> None:
+        # pyrefly: ignore [no-matching-overload]
         with g_pathmgr.open(self._tmpfile, "r") as f:
             self.assertEqual(f.read(), self._tmpfile_contents)
 
@@ -90,6 +91,7 @@ class TestNativeIO(unittest.TestCase):
     def test_open_args(self) -> None:
         # with patch("iopath.common.event_logger.EventLogger.log_event") as foo:
         self._pathmgr.set_strict_kwargs_checking(True)
+        # pyrefly: ignore [no-matching-overload]
         f = self._pathmgr.open(
             self._tmpfile,  # type: ignore
             mode="r",
@@ -381,6 +383,7 @@ class TestHTTPIO(unittest.TestCase):
         # HTTPURLHandler does not support writing, only reading.
         with self.assertRaises(AssertionError):
             with self._pathmgr.open(self._remote_uri, "w") as f:
+                # pyrefly: ignore [no-matching-overload]
                 f.write("foobar")
 
     def test_open_new_path_manager(self) -> None:

@@ -118,6 +118,7 @@ class NonBlockingIOManager:
             ),
             io_obj=io_obj,
             callback_after_file_close=callback_after_file_close,
+            # pyrefly: ignore [bad-argument-type]
             **kwargs,
         )
 

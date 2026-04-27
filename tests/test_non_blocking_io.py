@@ -79,6 +79,7 @@ class TestNativeIOAsync(unittest.TestCase):
             )
             # Test that 2 paths were properly logged in `NonBlockingIOManager`.
             manager = self._pathmgr._native_path_handler._non_blocking_io_manager
+            # pyrefly: ignore [missing-attribute]
             self.assertEqual(len(manager._path_to_data), 2)
         finally:
             # Join the threads to wait for files to be written.
@@ -90,6 +91,7 @@ class TestNativeIOAsync(unittest.TestCase):
         with self._pathmgr.open(_tmpfile + "g", "r") as g:
             self.assertEqual(g.read(), G_STR)
         # Test that both `NonBlockingIO` objects `f` and `g` are finally closed.
+        # pyrefly: ignore [missing-attribute]
         self.assertEqual(len(manager._path_to_data), 0)
 
     def test_async_join_behavior(self) -> None:
@@ -108,6 +110,7 @@ class TestNativeIOAsync(unittest.TestCase):
                 with self._pathmgr.opena(_tmpfile + "3", "w") as f:
                     f.write(f"{_tmpfile_contents}-3")
             _path_to_data = (
+                # pyrefly: ignore [missing-attribute]
                 self._pathmgr._native_path_handler._non_blocking_io_manager._path_to_data
             )
             # Join the threads for the 1st and 3rd file and ensure threadpool completed.
@@ -149,6 +152,7 @@ class TestNativeIOAsync(unittest.TestCase):
             with self._pathmgr.opena(_file2, "a") as f:
                 f.write(_file2_text)
             _path_to_data = (
+                # pyrefly: ignore [missing-attribute]
                 self._pathmgr._native_path_handler._non_blocking_io_manager._path_to_data
             )
             # Check that `file2` is marked as the same file as `file1`.
@@ -286,6 +290,7 @@ class TestNativeIOAsync(unittest.TestCase):
             # Make sure the manager's executor is the same as the user's.
             self.assertEqual(
                 executor,
+                # pyrefly: ignore [missing-attribute]
                 self._pathmgr._native_path_handler._non_blocking_io_manager._pool,
             )
         finally:
