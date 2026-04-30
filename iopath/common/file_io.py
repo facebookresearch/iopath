@@ -12,36 +12,24 @@ import tempfile
 import traceback
 import uuid
 from collections import OrderedDict
+from collections.abc import Callable, Iterator, MutableMapping
 from io import IOBase
 from types import TracebackType
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    IO,
-    Iterator,
-    List,
-    MutableMapping,
-    Optional,
-    overload,
-    Set,
-    Type,
-    Union,
-)
+from typing import Any, IO, Literal, overload
 from urllib.parse import urlparse
 
 import aiofiles
 import portalocker  # type: ignore
 from iopath.common.download import download
-from iopath.common.event_logger import EventLogger, VTYPE
+from iopath.common.event_logger import EventLogger
 from iopath.common.non_blocking_io import NonBlockingIOManager
-from typing_extensions import Literal, Protocol
+from typing_extensions import Protocol
 
 
 __all__ = ["LazyPath", "PathManager", "get_cache_dir", "file_lock"]
 
 
-def get_cache_dir(cache_dir: Optional[str] = None) -> str:
+def get_cache_dir(cache_dir: str | None = None) -> str:
     """
     Returns a default directory to cache static files
     (usually downloaded from Internet), if None is provided.
@@ -68,7 +56,7 @@ def get_cache_dir(cache_dir: Optional[str] = None) -> str:
     return cache_dir
 
 
-def file_lock(path: str):  # type: ignore
+def file_lock(path: str) -> portalocker.Lock:
     """
     A file lock. Once entered, it is guaranteed that no one else holds the
     same lock. Others trying to enter the lock will block for 30 minutes and
@@ -97,7 +85,7 @@ def file_lock(path: str):  # type: ignore
         # the lock. If failed to create the directory, the next line will raise
         # exceptions.
         pass
-    return portalocker.Lock(path + ".lock", timeout=3600)  # type: ignore
+    return portalocker.Lock(path + ".lock", timeout=3600)
 
 
 class LazyPath(os.PathLike[str]):
@@ -121,7 +109,7 @@ class LazyPath(os.PathLike[str]):
                 actual path as a str. It will be called at most once.
         """
         self._func = func
-        self._value: Optional[str] = None
+        self._value: str | None = None
 
     def _get_value(self) -> str:
         if self._value is None:
@@ -132,7 +120,7 @@ class LazyPath(os.PathLike[str]):
         return self._get_value()
 
     # behave more like a str after evaluated
-    def __getattr__(self, name: str):  # type: ignore
+    def __getattr__(self, name: str) -> Any:
         if name in LazyPath.KEPT_ATTRIBUTES:
             # pyre-fixme[16]: `PathLike` has no attribute `__getattr__`.
             return super().__getattr__(name)
@@ -140,7 +128,7 @@ class LazyPath(os.PathLike[str]):
             raise AttributeError(f"Uninitialized LazyPath has no attribute: {name}.")
         return getattr(self._value, name)
 
-    def __getitem__(self, key):  # type: ignore
+    def __getitem__(self, key: int | slice) -> str:
         if self._value is None:
             raise TypeError("Uninitialized LazyPath is not subscriptable.")
         return self._value[key]  # type: ignore
@@ -161,9 +149,9 @@ class TabularIO(Protocol):
 
     def __exit__(
         self,
-        exc_type: Optional[Type[BaseException]],
-        exc_val: Optional[BaseException],
-        exc_tb: Optional[TracebackType],
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
     ) -> None: ...
 
     def __iter__(self) -> Iterator[Any]: ...
@@ -180,7 +168,7 @@ class PathHandler(EventLogger):
 
     def __init__(
         self,
-        async_executor: Optional[concurrent.futures.Executor] = None,
+        async_executor: concurrent.futures.Executor | None = None,
     ) -> None:
         """
         When registering a `PathHandler`, the user can optionally pass in a
@@ -197,8 +185,7 @@ class PathHandler(EventLogger):
                 ```
         """
         super().__init__()
-        # pyre-fixme[4]: Attribute must be annotated.
-        self._non_blocking_io_manager = None
+        self._non_blocking_io_manager: NonBlockingIOManager | None = None
         self._non_blocking_io_executor = async_executor
         try:
             from iopath.common.setup_defaults import setup_handler_defaults
@@ -207,27 +194,27 @@ class PathHandler(EventLogger):
         except ImportError:
             pass
 
-    def _check_kwargs(self, kwargs: Dict[str, Any]) -> None:
+    def _check_kwargs(self, kwargs: dict[str, Any]) -> None:
         """
         Checks if the given arguments are empty. Throws a ValueError if strict
         kwargs checking is enabled and args are non-empty. If strict kwargs
         checking is disabled, only a warning is logged.
 
         Args:
-            kwargs (Dict[str, Any])
+            kwargs (dict[str, Any])
         """
         if self._strict_kwargs_check:
             if len(kwargs) > 0:
-                raise ValueError("Unused arguments: {}".format(kwargs))
+                raise ValueError(f"Unused arguments: {kwargs}")
         else:
             logger = logging.getLogger(__name__)
             for k, v in kwargs.items():
-                logger.warning("[PathManager] {}={} argument ignored".format(k, v))
+                logger.warning(f"[PathManager] {k}={v} argument ignored")
 
-    def _get_supported_prefixes(self) -> List[str]:
+    def _get_supported_prefixes(self) -> list[str]:
         """
         Returns:
-            List[str]: the list of URI prefixes this PathHandler can support
+            list[str]: the list of URI prefixes this PathHandler can support
         """
         raise NotImplementedError()
 
@@ -252,7 +239,7 @@ class PathHandler(EventLogger):
 
     def _copy_from_local(
         self, local_path: str, dst_path: str, overwrite: bool = False, **kwargs: Any
-    ) -> Optional[bool]:
+    ) -> bool | None:
         """
         Copies a local file to the specified URI.
 
@@ -281,7 +268,7 @@ class PathHandler(EventLogger):
 
     def _open(
         self, path: str, mode: str = "r", buffering: int = -1, **kwargs: Any
-    ) -> Union[IO[str], IO[bytes]]:
+    ) -> IO[str] | IO[bytes]:
         """
         Open a stream to a URI, similar to the built-in `open`.
 
@@ -304,7 +291,7 @@ class PathHandler(EventLogger):
         self,
         path: str,
         mode: str = "r",
-        callback_after_file_close: Optional[Callable[[None], None]] = None,
+        callback_after_file_close: Callable[[None], None] | None = None,
         buffering: int = -1,
         **kwargs: Any,
         # pyre-fixme[7]: Expected `IOBase` but got implicit return value of `None`.
@@ -387,7 +374,7 @@ class PathHandler(EventLogger):
             )
             self._async_close()
 
-    def _async_join(self, path: Optional[str] = None, **kwargs: Any) -> bool:
+    def _async_join(self, path: str | None = None, **kwargs: Any) -> bool:
         """
         Ensures that desired async write threads are properly joined.
 
@@ -493,7 +480,7 @@ class PathHandler(EventLogger):
         """
         raise NotImplementedError()
 
-    def _ls(self, path: str, **kwargs: Any) -> List[str]:
+    def _ls(self, path: str, **kwargs: Any) -> list[str]:
         """
         List the contents of the directory at the provided URI.
 
@@ -501,7 +488,7 @@ class PathHandler(EventLogger):
             path (str): A URI supported by this PathHandler
 
         Returns:
-            List[str]: list of contents in given path
+            list[str]: list of contents in given path
         """
         raise NotImplementedError()
 
@@ -535,7 +522,7 @@ class PathHandler(EventLogger):
         """
         raise NotImplementedError()
 
-    def _set_cwd(self, path: Union[str, None], **kwargs: Any) -> bool:
+    def _set_cwd(self, path: str | None, **kwargs: Any) -> bool:
         """
         Set the current working directory. PathHandler classes prepend the cwd
         to all URI paths that are handled.
@@ -571,7 +558,7 @@ class NativeAsyncReader(IOBase):
         path: str,
         mode: str,
         buffering: int,
-        callback_after_file_close: Optional[Callable[[None], None]] = None,
+        callback_after_file_close: Callable[[None], None] | None = None,
         **kwargs: Any,
     ) -> None:
         self._path = path
@@ -580,7 +567,7 @@ class NativeAsyncReader(IOBase):
         self._callback_after_file_close = callback_after_file_close
         self._kwargs: Any = kwargs
 
-    async def read(self) -> Union[bytes, str]:
+    async def read(self) -> bytes | str:
         # pyrefly: ignore [no-matching-overload]
         async with aiofiles.open(
             file=self._path, mode=self._mode, buffering=self._buffering, **self._kwargs
@@ -601,9 +588,9 @@ class NativeAsyncReader(IOBase):
 
     def __exit__(
         self,
-        exc_type: Optional[Type[BaseException]],
-        exc_val: Optional[BaseException],
-        exc_tb: Optional[TracebackType],
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
     ) -> None:
         pass
 
@@ -614,12 +601,11 @@ class NativePathHandler(PathHandler):
     handler uses `open()` and `os.*` calls on the given path.
     """
 
-    # pyre-fixme[4]: Attribute must be annotated.
-    _cwd = None
+    _cwd: str | None = None
 
     def __init__(
         self,
-        async_executor: Optional[concurrent.futures.Executor] = None,
+        async_executor: concurrent.futures.Executor | None = None,
     ) -> None:
         super().__init__(async_executor)
 
@@ -643,14 +629,13 @@ class NativePathHandler(PathHandler):
         path: str,
         mode: str = "r",
         buffering: int = -1,
-        encoding: Optional[str] = None,
-        errors: Optional[str] = None,
-        newline: Optional[str] = None,
+        encoding: str | None = None,
+        errors: str | None = None,
+        newline: str | None = None,
         closefd: bool = True,
-        # pyre-fixme[24]: Generic type `Callable` expects 2 type parameters.
-        opener: Optional[Callable] = None,
+        opener: Callable[..., Any] | None = None,
         **kwargs: Any,
-    ) -> Union[IO[str], IO[bytes]]:
+    ) -> IO[str] | IO[bytes]:
         """
         Open a path.
 
@@ -667,19 +652,19 @@ class NativePathHandler(PathHandler):
                     underlying device’s “block size” and falling back on
                     io.DEFAULT_BUFFER_SIZE. On many systems, the buffer will
                     typically be 4096 or 8192 bytes long.
-            encoding (Optional[str]): the name of the encoding used to decode or
+            encoding (str | None): the name of the encoding used to decode or
                 encode the file. This should only be used in text mode.
-            errors (Optional[str]): an optional string that specifies how encoding
+            errors (str | None): an optional string that specifies how encoding
                 and decoding errors are to be handled. This cannot be used in binary
                 mode.
-            newline (Optional[str]): controls how universal newlines mode works
+            newline (str | None): controls how universal newlines mode works
                 (it only applies to text mode). It can be None, '', '\n', '\r',
                 and '\r\n'.
             closefd (bool): If closefd is False and a file descriptor rather than
                 a filename was given, the underlying file descriptor will be kept
                 open when the file is closed. If a filename is given closefd must
                 be True (the default) otherwise an error will be raised.
-            opener (Optional[Callable]): A custom opener can be used by passing
+            opener (Callable | None): A custom opener can be used by passing
                 a callable as opener. The underlying file descriptor for the file
                 object is then obtained by calling opener with (file, flags).
                 opener must return an open file descriptor (passing os.open as opener
@@ -708,13 +693,12 @@ class NativePathHandler(PathHandler):
         path: str,
         mode: str = "r",
         buffering: int = -1,
-        callback_after_file_close: Optional[Callable[[None], None]] = None,
-        encoding: Optional[str] = None,
-        errors: Optional[str] = None,
-        newline: Optional[str] = None,
+        callback_after_file_close: Callable[[None], None] | None = None,
+        encoding: str | None = None,
+        errors: str | None = None,
+        newline: str | None = None,
         closefd: bool = True,
-        # pyre-fixme[24]: Generic type `Callable` expects 2 type parameters.
-        opener: Optional[Callable] = None,
+        opener: Callable[..., Any] | None = None,
         **kwargs: Any,
     ) -> IOBase:
         self._check_kwargs(kwargs)
@@ -765,7 +749,7 @@ class NativePathHandler(PathHandler):
         dst_path = self._get_path_with_cwd(dst_path)
         if os.path.exists(dst_path) and not overwrite:
             logger = logging.getLogger(__name__)
-            logger.error("Destination file {} already exists.".format(dst_path))
+            logger.error(f"Destination file {dst_path} already exists.")
             return False
 
         try:
@@ -773,7 +757,7 @@ class NativePathHandler(PathHandler):
             return True
         except Exception as e:
             logger = logging.getLogger(__name__)
-            logger.error("Error in file copy - {}".format(str(e)))
+            logger.error(f"Error in file copy - {str(e)}")
             return False
 
     def _mv(self, src_path: str, dst_path: str, **kwargs: Any) -> bool:
@@ -792,7 +776,7 @@ class NativePathHandler(PathHandler):
         dst_path = self._get_path_with_cwd(dst_path)
         if os.path.exists(dst_path):
             logger = logging.getLogger(__name__)
-            logger.error("Destination file {} already exists.".format(dst_path))
+            logger.error(f"Destination file {dst_path} already exists.")
             return False
 
         try:
@@ -800,7 +784,7 @@ class NativePathHandler(PathHandler):
             return True
         except Exception as e:
             logger = logging.getLogger(__name__)
-            logger.error("Error in move operation - {}".format(str(e)))
+            logger.error(f"Error in move operation - {str(e)}")
             return False
 
     def _symlink(self, src_path: str, dst_path: str, **kwargs: Any) -> bool:
@@ -819,16 +803,16 @@ class NativePathHandler(PathHandler):
         dst_path = self._get_path_with_cwd(dst_path)
         logger = logging.getLogger(__name__)
         if not os.path.exists(src_path):
-            logger.error("Source path {} does not exist".format(src_path))
+            logger.error(f"Source path {src_path} does not exist")
             return False
         if os.path.exists(dst_path):
-            logger.error("Destination path {} already exists.".format(dst_path))
+            logger.error(f"Destination path {dst_path} already exists.")
             return False
         try:
             os.symlink(src_path, dst_path)
             return True
         except Exception as e:
-            logger.error("Error in symlink - {}".format(str(e)))
+            logger.error(f"Error in symlink - {str(e)}")
             return False
 
     def _exists(self, path: str, **kwargs: Any) -> bool:
@@ -843,7 +827,7 @@ class NativePathHandler(PathHandler):
         self._check_kwargs(kwargs)
         return os.path.isdir(self._get_path_with_cwd(path))
 
-    def _ls(self, path: str, **kwargs: Any) -> List[str]:
+    def _ls(self, path: str, **kwargs: Any) -> list[str]:
         self._check_kwargs(kwargs)
         return os.listdir(self._get_path_with_cwd(path))
 
@@ -860,7 +844,7 @@ class NativePathHandler(PathHandler):
         self._check_kwargs(kwargs)
         os.remove(path)
 
-    def _set_cwd(self, path: Union[str, None], **kwargs: Any) -> bool:
+    def _set_cwd(self, path: str | None, **kwargs: Any) -> bool:
         self._check_kwargs(kwargs)
         # Remove cwd path if None
         if path is None:
@@ -893,16 +877,16 @@ class HTTPURLHandler(PathHandler):
 
     def __init__(self) -> None:
         super().__init__()
-        self.cache_map: Dict[str, str] = {}
+        self.cache_map: dict[str, str] = {}
 
-    def _get_supported_prefixes(self) -> List[str]:
+    def _get_supported_prefixes(self) -> list[str]:
         return ["http://", "https://", "ftp://"]
 
     def _get_local_path(
         self,
         path: str,
         force: bool = False,
-        cache_dir: Optional[str] = None,
+        cache_dir: str | None = None,
         **kwargs: Any,
     ) -> str:
         """
@@ -931,15 +915,15 @@ class HTTPURLHandler(PathHandler):
             cached = os.path.join(dirname, filename)
             with file_lock(cached):
                 if not os.path.isfile(cached):
-                    logger.info("Downloading {} ...".format(path))
+                    logger.info(f"Downloading {path} ...")
                     cached = download(path, dirname, filename=filename)
-            logger.info("URL {} cached in {}".format(path, cached))
+            logger.info(f"URL {path} cached in {cached}")
             self.cache_map[path] = cached
         return self.cache_map[path]
 
     def _open(
         self, path: str, mode: str = "r", buffering: int = -1, **kwargs: Any
-    ) -> Union[IO[str], IO[bytes]]:
+    ) -> IO[str] | IO[bytes]:
         """
         Open a remote HTTP path. The resource is first downloaded and cached
         locally.
@@ -990,7 +974,7 @@ class OneDrivePathHandler(HTTPURLHandler):
         )
         return result_url
 
-    def _get_supported_prefixes(self) -> List[str]:
+    def _get_supported_prefixes(self) -> list[str]:
         return [self.ONE_DRIVE_PREFIX]
 
     # pyre-fixme[14]: `_get_local_path` overrides method defined in `HTTPURLHandler`
@@ -1020,7 +1004,7 @@ class PathManager:
     def __init__(self) -> None:
         self._path_handlers: MutableMapping[str, PathHandler] = OrderedDict()
         """
-        Dict from path prefix to handler.
+        dict from path prefix to handler.
         """
 
         self._native_path_handler: PathHandler = NativePathHandler()
@@ -1028,13 +1012,13 @@ class PathManager:
         A NativePathHandler that works on posix paths. This is used as the fallback.
         """
 
-        self._cwd: Optional[str] = None
+        self._cwd: str | None = None
         """
         Keeps track of the single cwd (if set).
         NOTE: Only one PathHandler can have a cwd set at a time.
         """
 
-        self._async_handlers: Set[PathHandler] = set()
+        self._async_handlers: set[PathHandler] = set()
         """
         Keeps track of the PathHandler subclasses where `opena` was used so
         all of the threads can be properly joined when calling
@@ -1046,8 +1030,7 @@ class PathManager:
         Flag for enabling / disabling telemetry.
         """
 
-    # pyre-fixme[24]: Generic type `os.PathLike` expects 1 type parameter.
-    def get_path_handler(self, path: Union[str, os.PathLike]) -> PathHandler:
+    def get_path_handler(self, path: str | os.PathLike[str]) -> PathHandler:
         """
         Finds a PathHandler that supports the given path. Falls back to the native
         PathHandler if no other handler is found.
@@ -1067,13 +1050,15 @@ class PathManager:
                 return handler
         return self._native_path_handler
 
-    def __log_tmetry_keys(self, handler: PathHandler, kvs: Dict[str, VTYPE]) -> None:
+    def __log_tmetry_keys(
+        self, handler: PathHandler, kvs: dict[str, str | int | bool | float]
+    ) -> None:
         """
         Logs a dictionary of key-value pairs to a given path handler.
 
         Args:
             handler (PathHandler): The path handler to send the key-value pairs to.
-            kvs (Dict): Dict of Key-value pairs to be logged.
+            kvs (dict): dict of key-value pairs to be logged.
 
         """
         if self._enable_logging:
@@ -1089,9 +1074,9 @@ class PathManager:
                 )
                 self._enable_logging = False
 
-    # pyre-fixme[34]: `Variable[VTYPE <: [str, int, bool, float]]` isn't present in
-    #  the function's parameters.
-    def __get_open_keys(self, path: str, mode: str, buffering: int) -> Dict[str, VTYPE]:
+    def __get_open_keys(
+        self, path: str, mode: str, buffering: int
+    ) -> dict[str, str | int]:
         """
         Helper function to return common set of key-value pairs applicable to open apis.
 
@@ -1176,7 +1161,7 @@ class PathManager:
 
     def open(
         self, path: str, mode: str = "r", buffering: int = -1, **kwargs: Any
-    ) -> Union[IO[str], IO[bytes]]:
+    ) -> IO[str] | IO[bytes]:
         """
         Open a stream to a URI, similar to the built-in `open`.
 
@@ -1208,7 +1193,7 @@ class PathManager:
         path: str,
         mode: str = "r",
         buffering: int = -1,
-        callback_after_file_close: Optional[Callable[[None], None]] = None,
+        callback_after_file_close: Callable[[None], None] | None = None,
         **kwargs: Any,
     ) -> IOBase:
         """
@@ -1386,9 +1371,11 @@ class PathManager:
             bret = handler._get_local_path(path, force=force, **kwargs)
         except TypeError:
             bret = handler._get_local_path(path, **kwargs)
-        kvs = {"op": "get_local_path", "path": path, "force": force}
-        # pyre-fixme[6]: For 2nd param expected `Dict[str, Variable[VTYPE <: [str,
-        #  int, bool, float]]]` but got `Dict[str, Union[bool, str]]`.
+        kvs: dict[str, str | int | bool | float] = {
+            "op": "get_local_path",
+            "path": path,
+            "force": force,
+        }
         self.__log_tmetry_keys(handler, kvs)
         return bret
 
@@ -1412,7 +1399,7 @@ class PathManager:
         assert os.path.exists(local_path), f"local_path = {local_path}"
         handler = self.get_path_handler(dst_path)
 
-        kvs = {
+        kvs: dict[str, str | int | bool | float] = {
             "op": "copy_from_local",
             "path": local_path,
             "dst_path": dst_path,
@@ -1421,11 +1408,8 @@ class PathManager:
         bret = handler._copy_from_local(
             local_path=local_path, dst_path=dst_path, overwrite=overwrite, **kwargs
         )
-        # pyre-fixme[6]: For 2nd param expected `Dict[str, Variable[VTYPE <: [str,
-        #  int, bool, float]]]` but got `Dict[str, Union[bool, str]]`.
         self.__log_tmetry_keys(handler, kvs)
-        # pyre-fixme[7]: Expected `bool` but got `None`.
-        return bret
+        return bret if bret is not None else False
 
     def exists(self, path: str, **kwargs: Any) -> bool:
         """
@@ -1475,7 +1459,7 @@ class PathManager:
         self.__log_tmetry_keys(handler, kvs)
         return bret
 
-    def ls(self, path: str, **kwargs: Any) -> List[str]:
+    def ls(self, path: str, **kwargs: Any) -> list[str]:
         """
         List the contents of the directory at the provided URI.
 
@@ -1483,7 +1467,7 @@ class PathManager:
             path (str): A URI supported by this PathHandler
 
         Returns:
-            List[str]: list of contents in given path
+            list[str]: list of contents in given path
         """
         return self.get_path_handler(path)._ls(path, **kwargs)
 
@@ -1532,7 +1516,7 @@ class PathManager:
         self.__log_tmetry_keys(handler, kvs)
         return bret
 
-    def set_cwd(self, path: Union[str, None], **kwargs: Any) -> bool:
+    def set_cwd(self, path: str | None, **kwargs: Any) -> bool:
         """
         Set the current working directory. PathHandler classes prepend the cwd
         to all URI paths that are handled.
@@ -1546,17 +1530,17 @@ class PathManager:
         """
         if path is None and self._cwd is None:
             return True
-        # pyre-fixme[6]: For 1st param expected `Union[PathLike[typing.Any], str]`
-        #  but got `Optional[str]`.
-        handler = self.get_path_handler(path or self._cwd)
-        if self.get_path_handler(path or self._cwd)._set_cwd(path, **kwargs):  # type: ignore
+        effective_path = path if path is not None else self._cwd
+        assert effective_path is not None
+        handler = self.get_path_handler(effective_path)
+        if handler._set_cwd(path, **kwargs):  # type: ignore
             self._cwd = path
             bret = True
         else:
             bret = False
-        kvs = {"op": "set_cwd", "path": path}
-        # pyre-fixme[6]: For 2nd param expected `Dict[str, Variable[VTYPE <: [str,
-        #  int, bool, float]]]` but got `Dict[str, Optional[str]]`.
+        kvs: dict[str, str | int | bool | float] = {"op": "set_cwd"}
+        if path is not None:
+            kvs["path"] = path
         self.__log_tmetry_keys(handler, kvs)
         return bret
 
@@ -1646,9 +1630,7 @@ class PathManager:
         for handler in self._path_handlers.values():
             handler._strict_kwargs_check = enable
 
-    # pyre-fixme[3]: Return type must be annotated.
-    # pyre-fixme[2]: Parameter must be annotated.
-    def set_logging(self, enable_logging=True):
+    def set_logging(self, enable_logging: bool = True) -> None:
         self._enable_logging = enable_logging
 
     def _copy_across_handlers(
@@ -1660,10 +1642,10 @@ class PathManager:
         assert dst_handler._copy_from_local is not None
 
         local_file = src_handler._get_local_path(src_path, **kwargs)
-        # pyre-fixme[7]: Expected `bool` but got `None`.
-        return dst_handler._copy_from_local(
+        result = dst_handler._copy_from_local(
             local_file, dst_path, overwrite=overwrite, **kwargs
         )
+        return result if result is not None else False
 
 
 """
@@ -1697,12 +1679,12 @@ class PathManagerFactory:
     """
 
     GLOBAL_PATH_MANAGER = "global_path_manager"
-    # pyre-fixme[4]: Attribute must be annotated.
-    pm_list = {}
+    pm_list: dict[str, PathManager] = {}
 
     @staticmethod
-    # pyre-fixme[2]: Parameter must be annotated.
-    def get(key=GLOBAL_PATH_MANAGER, defaults_setup=False) -> PathManager:
+    def get(
+        key: str = GLOBAL_PATH_MANAGER, defaults_setup: bool = False
+    ) -> PathManager:
         """
         Get the path manager instance associated with a key.
         A new instance will be created if there is no existing
@@ -1724,9 +1706,7 @@ class PathManagerFactory:
         return PathManagerFactory.pm_list[key]
 
     @staticmethod
-    # pyre-fixme[3]: Return type must be annotated.
-    # pyre-fixme[2]: Parameter must be annotated.
-    def remove(key):
+    def remove(key: str) -> None:
         """
         Remove the path manager instance associated with a key.
         Args:
@@ -1742,5 +1722,4 @@ A global instance of PathManager.
 This global instance is provided for backward compatibility, but it is
 recommended that clients use PathManagerFactory
 """
-# pyre-fixme[5]:  Global expression must be annotated.
-g_pathmgr = PathManagerFactory.get(defaults_setup=True)
+g_pathmgr: PathManager = PathManagerFactory.get(defaults_setup=True)
