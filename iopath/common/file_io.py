@@ -1155,6 +1155,7 @@ class PathManager:
         return self.get_path_handler(path)._openw(path, mode, buffering, **kwargs)
 
     @overload
+    # pyrefly: ignore [inconsistent-overload-default]
     def open(
         self,
         path: str,

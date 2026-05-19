@@ -370,6 +370,7 @@ class AzureBlobPathHandler(PathHandler):
     def _get_blob_properties(self, path: str) -> Dict[str, Any]:
         account, container, blob = self._parse_uri(path)
         client = self._get_client(account)
+        # pyrefly: ignore [missing-attribute]
         props = client.get_blob_client(
             container=container, blob=blob
         ).get_blob_properties()
@@ -379,6 +380,7 @@ class AzureBlobPathHandler(PathHandler):
     def _enumerate_blobs(self, path: str) -> Iterator[Any]:
         account, container, path_prefix = self._parse_uri(path)
         client = self._get_client(account)
+        # pyrefly: ignore [missing-attribute]
         return client.get_container_client(container).list_blobs(
             name_starts_with=path_prefix
         )
@@ -522,6 +524,7 @@ class AzureBlobPathHandler(PathHandler):
             account, container, blob_path = self._parse_uri(path)
             client = self._get_client(account)
             try:
+                # pyrefly: ignore [missing-attribute]
                 blob_stream = client.get_blob_client(
                     container=container, blob=blob_path
                 ).download_blob()
@@ -566,6 +569,7 @@ class AzureBlobPathHandler(PathHandler):
         chunk_size = buffering if buffering > 0 else self.DEFAULT_CHUNK_SIZE
 
         account, container, blob_path = self._parse_uri(path)
+        # pyrefly: ignore [missing-attribute]
         blob_client = self._get_client(account).get_blob_client(
             container=container,
             blob=blob_path,
@@ -612,6 +616,7 @@ class AzureBlobPathHandler(PathHandler):
             )
 
         account, container, blob_path = self._parse_uri(dst_path)
+        # pyrefly: ignore [missing-attribute]
         blob_client = self._get_client(account).get_blob_client(
             container=container, blob=blob_path
         )
@@ -650,6 +655,7 @@ class AzureBlobPathHandler(PathHandler):
             src_blob_path,
             include_auth=True,
         )
+        # pyrefly: ignore [missing-attribute]
         dst_blob = self._get_client(dst_account).get_blob_client(
             container=dst_container, blob=dst_blob_path
         )
@@ -692,6 +698,7 @@ class AzureBlobPathHandler(PathHandler):
         self._check_kwargs(kwargs)
 
         account, container, blob_path = self._parse_uri(path)
+        # pyrefly: ignore [missing-attribute]
         blob_client = self._get_client(account).get_blob_client(
             container=container, blob=blob_path
         )
