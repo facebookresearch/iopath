@@ -13,6 +13,7 @@ import traceback
 import uuid
 from collections import OrderedDict
 from io import IOBase
+from pathlib import Path, PurePosixPath
 from types import TracebackType
 from typing import (
     Any,
@@ -917,9 +918,19 @@ class HTTPURLHandler(PathHandler):
         ):
             logger = logging.getLogger(__name__)
             parsed_url = urlparse(path)
-            dirname = os.path.join(
-                get_cache_dir(cache_dir), os.path.dirname(parsed_url.path.lstrip("/"))
-            )
+            url_path_parts = [
+                part
+                for part in parsed_url.path.replace("\\", "/").split("/")
+                if part not in ("", ".")
+            ]
+            if ".." in url_path_parts:
+                raise ValueError(
+                    "URL path must not contain '..' components: {}".format(path)
+                )
+
+            url_path = PurePosixPath(*url_path_parts)
+            cache_root = Path(get_cache_dir(cache_dir))
+            dirname = cache_root / url_path.parent
             filename = path.split("/")[-1]
 
             if parsed_url.query:
@@ -928,13 +939,21 @@ class HTTPURLHandler(PathHandler):
             if len(filename) > self.MAX_FILENAME_LEN:
                 filename = filename[:100] + "_" + uuid.uuid4().hex
 
-            cached = os.path.join(dirname, filename)
-            with file_lock(cached):
-                if not os.path.isfile(cached):
+            cached = dirname / filename
+            cache_root_resolved = cache_root.resolve()
+            cached_resolved = cached.resolve()
+            if not cached_resolved.is_relative_to(cache_root_resolved):
+                raise ValueError(
+                    "URL cache path must stay under cache directory: {}".format(path)
+                )
+
+            cached_path = os.fspath(cached)
+            with file_lock(cached_path):
+                if not os.path.isfile(cached_path):
                     logger.info("Downloading {} ...".format(path))
-                    cached = download(path, dirname, filename=filename)
-            logger.info("URL {} cached in {}".format(path, cached))
-            self.cache_map[path] = cached
+                    cached_path = download(path, os.fspath(dirname), filename=filename)
+            logger.info("URL {} cached in {}".format(path, cached_path))
+            self.cache_map[path] = cached_path
         return self.cache_map[path]
 
     def _open(
@@ -1595,7 +1614,6 @@ class PathManager:
             old_handler_type = type(self._path_handlers[prefix])
             if allow_override:
                 # if using the global PathManager, show the warnings
-                global g_pathmgr
                 if self == g_pathmgr:
                     logger.warning(
                         f"[PathManager] Attempting to register prefix '{prefix}' from "

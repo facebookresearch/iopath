@@ -303,9 +303,9 @@ class TestNativeIO(unittest.TestCase):
         with self.subTest("read binary"):
             test_data = {
                 "test_string": "test string",
-                1: 1,
-                1.0: 1.0,
-                True: True,
+                "test_int": 1,
+                "test_float": 1.0,
+                "test_bool": True,
             }
             tmp_binary_path = os.path.join(self._tmpdir, "test_binary.bin")  # type: ignore
             pickle.dump(test_data, open(tmp_binary_path, "wb"))
@@ -371,6 +371,35 @@ class TestHTTPIO(unittest.TestCase):
             self.assertTrue(local_path.startswith(self._cache_dir))
             self.assertTrue(os.path.exists(local_path))
             self.assertTrue(os.path.isfile(local_path))
+
+    def test_get_local_path_rejects_path_traversal(self) -> None:
+        with patch.object(
+            file_io, "get_cache_dir", return_value=self._cache_dir
+        ), patch.object(file_io, "download") as mock_download:
+            with self.assertRaisesRegex(ValueError, "must not contain"):
+                self._pathmgr.get_local_path(
+                    "https://example.com/models/../../escape.txt", force=True
+                )
+            mock_download.assert_not_called()
+
+    def test_get_local_path_rejects_cache_symlink_escape(self) -> None:
+        symlink_name = "escape_" + uuid.uuid4().hex
+        symlink_dir = os.path.join(self._cache_dir, symlink_name)
+        with tempfile.TemporaryDirectory() as outside_dir:
+            os.symlink(outside_dir, symlink_dir)
+            try:
+                with patch.object(
+                    file_io, "get_cache_dir", return_value=self._cache_dir
+                ), patch.object(file_io, "download") as mock_download:
+                    with self.assertRaisesRegex(ValueError, "cache path"):
+                        self._pathmgr.get_local_path(
+                            f"https://example.com/{symlink_name}/model.bin",
+                            force=True,
+                        )
+                    mock_download.assert_not_called()
+            finally:
+                if os.path.lexists(symlink_dir):
+                    os.unlink(symlink_dir)
 
     def test_open(self) -> None:
         with self._patch_download():
