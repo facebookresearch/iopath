@@ -1679,10 +1679,10 @@ class PathManager:
         assert dst_handler._copy_from_local is not None
 
         local_file = src_handler._get_local_path(src_path, **kwargs)
-        # pyre-fixme[7]: Expected `bool` but got `None`.
-        return dst_handler._copy_from_local(
+        result = dst_handler._copy_from_local(
             local_file, dst_path, overwrite=overwrite, **kwargs
         )
+        return result if result is not None else False
 
 
 """
