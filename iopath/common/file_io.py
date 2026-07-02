@@ -1566,17 +1566,15 @@ class PathManager:
         """
         if path is None and self._cwd is None:
             return True
-        # pyre-fixme[6]: For 1st param expected `Union[PathLike[typing.Any], str]`
-        #  but got `Optional[str]`.
-        handler = self.get_path_handler(path or self._cwd)
-        if self.get_path_handler(path or self._cwd)._set_cwd(path, **kwargs):  # type: ignore
+        handler_path = path or self._cwd
+        assert handler_path is not None
+        handler = self.get_path_handler(handler_path)
+        if handler._set_cwd(path, **kwargs):  # type: ignore
             self._cwd = path
             bret = True
         else:
             bret = False
-        kvs = {"op": "set_cwd", "path": path}
-        # pyre-fixme[6]: For 2nd param expected `Dict[str, Variable[VTYPE <: [str,
-        #  int, bool, float]]]` but got `Dict[str, Optional[str]]`.
+        kvs = {"op": "set_cwd", "path": path or "null"}
         self.__log_tmetry_keys(handler, kvs)
         return bret
 
