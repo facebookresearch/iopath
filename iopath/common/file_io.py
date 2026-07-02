@@ -1745,8 +1745,7 @@ class PathManagerFactory:
             key (str):
         """
         if key in PathManagerFactory.pm_list:
-            _pm = PathManagerFactory.pm_list.pop(key)  # noqa: F841
-            del _pm
+            PathManagerFactory.pm_list.pop(key)
 
 
 """
