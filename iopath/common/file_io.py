@@ -1516,10 +1516,9 @@ class PathManager:
             path (str): A URI supported by this PathHandler
         """
         handler = self.get_path_handler(path)
-        bret = handler._mkdirs(path, **kwargs)  # type: ignore
+        handler._mkdirs(path, **kwargs)  # type: ignore
         kvs = {"op": "mkdirs", "path": path}
         self.__log_tmetry_keys(handler, kvs)
-        return bret
 
     def rm(self, path: str, **kwargs: Any) -> None:
         """
@@ -1529,10 +1528,9 @@ class PathManager:
             path (str): A URI supported by this PathHandler
         """
         handler = self.get_path_handler(path)
-        bret = handler._rm(path, **kwargs)  # type: ignore
+        handler._rm(path, **kwargs)  # type: ignore
         kvs = {"op": "rm", "path": path}
         self.__log_tmetry_keys(handler, kvs)
-        return bret
 
     def symlink(self, src_path: str, dst_path: str, **kwargs: Any) -> bool:
         """Symlink the src_path to the dst_path
