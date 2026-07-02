@@ -1275,7 +1275,8 @@ class PathManager:
         if "w" in mode:
             kwargs["callback_after_file_close"] = callback_after_file_close
             kwargs["buffering"] = buffering
-        non_blocking_io = self.get_path_handler(path)._opena(
+        handler = self.get_path_handler(path)
+        non_blocking_io = handler._opena(
             path,
             mode,
             **kwargs,
@@ -1283,7 +1284,7 @@ class PathManager:
         if "w" in mode:
             # Keep track of the path handlers where `opena` is used so that all of the
             # threads can be properly joined on `PathManager.join`.
-            self._async_handlers.add(self.get_path_handler(path))
+            self._async_handlers.add(handler)
         return non_blocking_io
 
     def async_join(self, *paths: str, **kwargs: Any) -> bool:
@@ -1348,12 +1349,10 @@ class PathManager:
             status (bool): True on success
         """
 
-        if self.get_path_handler(src_path) != self.get_path_handler(  # type: ignore
-            dst_path
-        ):
+        handler = self.get_path_handler(src_path)
+        if handler != self.get_path_handler(dst_path):
             return self._copy_across_handlers(src_path, dst_path, overwrite, **kwargs)
 
-        handler = self.get_path_handler(src_path)
         bret = handler._copy(src_path, dst_path, overwrite, **kwargs)
         kvs = {"op": "copy", "path": src_path, "dst_path": dst_path}
         self.__log_tmetry_keys(handler, kvs)
@@ -1376,10 +1375,10 @@ class PathManager:
         """
 
         # Moving across handlers is not supported.
-        assert self.get_path_handler(src_path) == self.get_path_handler(  # type: ignore
+        handler = self.get_path_handler(src_path)
+        assert handler == self.get_path_handler(
             dst_path
         ), "Src and dest paths must be supported by the same path handler."
-        handler = self.get_path_handler(src_path)
         bret = handler._mv(src_path, dst_path, **kwargs)
         kvs = {"op": "mv", "path": src_path, "dst_path": dst_path}
         self.__log_tmetry_keys(handler, kvs)
@@ -1543,10 +1542,8 @@ class PathManager:
             dst_path (str): A URI supported by this PathHandler to symlink to
         """
         # Copying across handlers is not supported.
-        assert self.get_path_handler(src_path) == self.get_path_handler(  # type: ignore
-            dst_path
-        )
         handler = self.get_path_handler(src_path)
+        assert handler == self.get_path_handler(dst_path)
         bret = handler._symlink(src_path, dst_path, **kwargs)  # type: ignore
         kvs = {"op": "symlink", "path": src_path, "dst_path": dst_path}
         self.__log_tmetry_keys(handler, kvs)
