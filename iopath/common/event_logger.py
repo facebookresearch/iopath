@@ -38,11 +38,8 @@ class EventLogger:
     # pyre-fixme[2]: Parameter must be annotated.
     def __init__(self, *args, **kwargs):
         if b_tmetry_available:
-            # pyre-fixme[4]: Attribute must be annotated.
             self._writers = []
-            # pyre-fixme[4]: Attribute must be annotated.
             self._evt = SimpleEventRecord()
-            # pyre-fixme[4]: Attribute must be annotated.
             self._enabled = True
 
     # pyre-fixme[3]: Return type must be annotated.

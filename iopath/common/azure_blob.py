@@ -101,7 +101,6 @@ class AzureBlobReader(io.RawIOBase):
         logger.info(
             "Read next chunk: blob_name=%s, length=%d",
             blob_name,
-            # pyre-ignore[6]
             len(self._chunk),
         )
         self._chunk_pos = 0
@@ -257,7 +256,6 @@ class AzureBlobWriter(io.RawIOBase):
         assert self._chunk is not None
 
         block_id = self._new_block_id()
-        # pyre-ignore[16]
         block_length = self._chunk.tell()
         # pyre-ignore[16]
         self._chunk.seek(0)

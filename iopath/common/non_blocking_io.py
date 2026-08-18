@@ -63,11 +63,9 @@ class NonBlockingIOManager:
             executor: User can optionally attach a custom executor to
                 perform async operations through `PathHandler.__init__`.
         """
-        # pyre-fixme[4]: Attribute must be annotated.
         self._path_to_data = {}  # Map from path to `PathData` object
         self._buffered = buffered
         self._IO = NonBlockingBufferedIO if self._buffered else NonBlockingIO
-        # pyre-fixme[4]: Attribute must be annotated.
         self._pool = executor or concurrent.futures.ThreadPoolExecutor()
 
     def get_non_blocking_io(
@@ -110,7 +108,6 @@ class NonBlockingIOManager:
             self._path_to_data[path] = PathData(queue, t)
 
         kwargs = {} if not self._buffered else {"buffering": buffering}
-        # pyre-fixme[29]: `Type[Union[NonBlockingBufferedIO, NonBlockingIO]]` is not
         #  a function.
         return self._IO(
             notify_manager=lambda io_callable: (  # Pass async jobs to manager
@@ -296,7 +293,6 @@ class NonBlockingIO(io.IOBase):
 # NOTE: To use this class, use `buffered=True` in `NonBlockingIOManager`.
 # NOTE: This class expects the IO mode to be buffered.
 class NonBlockingBufferedIO(io.IOBase):
-    # pyre-fixme[4]: Attribute must be annotated.
     MAX_BUFFER_BYTES = 10 * 1024 * 1024  # 10 MiB
 
     def __init__(
@@ -321,7 +317,6 @@ class NonBlockingBufferedIO(io.IOBase):
         self._callback_after_file_close = callback_after_file_close
 
         self._buffers = [io.BytesIO()]
-        # pyre-fixme[4]: Attribute must be annotated.
         self._buffer_size = buffering if buffering > 0 else self.MAX_BUFFER_BYTES
         self._close_called = False
 

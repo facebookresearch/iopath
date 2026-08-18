@@ -127,7 +127,7 @@ class LazyPath(os.PathLike[str]):
     def _get_value(self) -> str:
         if self._value is None:
             self._value = self._func()
-        return self._value  # pyre-ignore
+        return self._value
 
     def __fspath__(self) -> str:
         return self._get_value()
@@ -1080,7 +1080,7 @@ class PathManager:
         Returns:
             handler (PathHandler)
         """
-        path = os.fspath(path)  # pyre-ignore
+        path = os.fspath(path)
         for p, handler in self._path_handlers.items():
             if path.startswith(p):
                 return handler
@@ -1108,7 +1108,6 @@ class PathManager:
                 )
                 self._enable_logging = False
 
-    # pyre-fixme[34]: `Variable[VTYPE <: [str, int, bool, float]]` isn't present in
     #  the function's parameters.
     def __get_open_keys(self, path: str, mode: str, buffering: int) -> Dict[str, VTYPE]:
         """
@@ -1178,7 +1177,6 @@ class PathManager:
     def open(
         self,
         path: str,
-        # pyrefly: ignore [unsupported-operation]
         mode: Literal["rb", "wb", "ab", "xb", "r+b", "w+b", "a+b", "x+b"] = ...,
         buffering: int = ...,
         **kwargs: Any,
@@ -1188,7 +1186,6 @@ class PathManager:
     def open(
         self,
         path: str,
-        # pyrefly: ignore [unsupported-operation]
         mode: Literal["r", "w", "a", "x", "r+", "w+", "a+", "x+", "rt", "wt"] = ...,
         buffering: int = ...,
         **kwargs: Any,

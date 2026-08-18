@@ -412,7 +412,6 @@ class TestHTTPIO(unittest.TestCase):
         # HTTPURLHandler does not support writing, only reading.
         with self.assertRaises(AssertionError):
             with self._pathmgr.open(self._remote_uri, "w") as f:
-                # pyrefly: ignore [no-matching-overload]
                 f.write("foobar")
 
     def test_open_new_path_manager(self) -> None:

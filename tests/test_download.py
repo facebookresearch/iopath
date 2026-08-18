@@ -11,7 +11,6 @@ from iopath.common.download import download
 
 
 class TestDownload(unittest.TestCase):
-    # pyre-fixme[4]: Attribute must be annotated.
     _filename = "facebook_" + uuid.uuid4().hex + ".html"
 
     # pyre-fixme[3]: Return type must be annotated.

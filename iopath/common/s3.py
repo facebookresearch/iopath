@@ -113,9 +113,7 @@ class S3PathHandler(PathHandler):
         # pyre-fixme[21]: Could not find module `boto3.s3.transfer`.
         from boto3.s3.transfer import TransferConfig
 
-        # pyre-fixme[4]: Attribute must be annotated.
         self.transfer_config = TransferConfig(
-            # pyrefly: ignore [bad-argument-type]
             **(transfer_config_kwargs if transfer_config_kwargs else {})
         )
 
@@ -639,7 +637,6 @@ class S3PathHandler(PathHandler):
 
 
 class S3ChunkReadIO(io.BufferedIOBase):
-    # pyre-fixme[4]: Attribute must be annotated.
     DEFAULT_CHUNK_SIZE = 50 * 1024 * 1024  # 50MB
 
     # pyre-fixme[3]: Return type must be annotated.
@@ -656,7 +653,6 @@ class S3ChunkReadIO(io.BufferedIOBase):
         self.client = client
         self.bucket = bucket
         self.key = key
-        # pyre-fixme[4]: Attribute must be annotated.
         self.timeout = timeout.total_seconds() if timeout is not None else None
         self.chunk_size = chunk_size
         self.offset = 0
