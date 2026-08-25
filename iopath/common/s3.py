@@ -1,6 +1,5 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
 
-# pyre-strict
 
 import datetime as dt
 import io
