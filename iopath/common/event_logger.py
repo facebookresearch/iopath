@@ -1,7 +1,7 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
 
 
-from typing import Dict, Optional, TypeVar
+from typing import Any, TypeVar
 
 
 try:
@@ -30,31 +30,24 @@ class EventLogger:
     SAMPLING_PERIOD = 10
 
     # Map to keep track of sample count per operation.
-    # pyre-fixme[4]: Attribute must be annotated.
-    sample_counts = {}
+    sample_counts: dict[str, int] = {}
 
-    # pyre-fixme[3]: Return type must be annotated.
-    # pyre-fixme[2]: Parameter must be annotated.
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         if b_tmetry_available:
             self._writers = []
             self._evt = SimpleEventRecord()
             self._enabled = True
 
-    # pyre-fixme[3]: Return type must be annotated.
-    # pyre-fixme[2]: Parameter must be annotated.
-    def add_writer(self, writer):
+    def add_writer(self, writer: Any) -> None:
         if b_tmetry_available:
             if isinstance(writer, TmetryWriter):
                 self._writers.append(writer)
 
-    # pyre-fixme[3]: Return type must be annotated.
-    def add_key(self, key: str, val: VTYPE):
+    def add_key(self, key: str, val: VTYPE) -> None:
         if b_tmetry_available:
             self._evt.set(key, val)
 
-    # pyre-fixme[3]: Return type must be annotated.
-    def add_keys(self, kvs: Dict[str, VTYPE]):
+    def add_keys(self, kvs: dict[str, VTYPE]) -> None:
         if b_tmetry_available:
             self._evt.set_keys(kvs)
 
@@ -91,8 +84,7 @@ class EventLogger:
     def is_logging_enabled(self) -> bool:
         return self._enabled
 
-    # pyre-fixme[3]: Return type must be annotated.
-    def log_event(self, topic: Optional[str] = None):
+    def log_event(self, topic: str | None = None) -> None:
         if b_tmetry_available and self._enabled:
 
             # Sample the current event.

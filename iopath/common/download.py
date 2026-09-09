@@ -4,12 +4,12 @@
 import logging
 import os
 import shutil
-from typing import Callable, List, Optional
+from collections.abc import Callable
 from urllib import request
 
 
 def download(
-    url: str, dir: str, *, filename: Optional[str] = None, progress: bool = True
+    url: str, dir: str, *, filename: str | None = None, progress: bool = True
 ) -> str:
     """
     Download a file from a given URL to a directory. If file exists, will not
@@ -44,10 +44,10 @@ def download(
         if progress:
             import tqdm
 
-            def hook(t: tqdm.tqdm) -> Callable[[int, int, Optional[int]], None]:
-                last_b: List[int] = [0]
+            def hook(t: tqdm.tqdm) -> Callable[[int, int, int | None], None]:
+                last_b: list[int] = [0]
 
-                def inner(b: int, bsize: int, tsize: Optional[int] = None) -> None:
+                def inner(b: int, bsize: int, tsize: int | None = None) -> None:
                     if tsize is not None:
                         t.total = tsize
                     t.update((b - last_b[0]) * bsize)  # type: ignore

@@ -4,10 +4,11 @@
 import concurrent.futures
 import io
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
 from queue import Queue
 from threading import Thread
-from typing import Callable, IO, Optional, Union
+from typing import IO
 
 
 """
@@ -35,8 +36,7 @@ class PathData:
     waits for it to finish, and then continues to poll.
     """
 
-    # pyre-fixme[24]: Generic type `Queue` expects 1 type parameter.
-    queue: Queue
+    queue: Queue[Callable[[], object] | None]
     thread: Thread
 
 
@@ -51,8 +51,8 @@ class NonBlockingIOManager:
 
     def __init__(
         self,
-        buffered: Optional[bool] = False,
-        executor: Optional[concurrent.futures.Executor] = None,
+        buffered: bool | None = False,
+        executor: concurrent.futures.Executor | None = None,
     ) -> None:
         """
         Args:
@@ -70,9 +70,9 @@ class NonBlockingIOManager:
     def get_non_blocking_io(
         self,
         path: str,
-        io_obj: Union[IO[str], IO[bytes]],
-        callback_after_file_close: Optional[Callable[[None], None]] = None,
-        buffering: Optional[int] = -1,
+        io_obj: IO[str] | IO[bytes],
+        callback_after_file_close: Callable[[None], None] | None = None,
+        buffering: int | None = -1,
     ) -> io.IOBase:
         """
         Called by `PathHandler._opena` with the path and returns a
@@ -118,7 +118,7 @@ class NonBlockingIOManager:
             **kwargs,
         )
 
-    def _poll_jobs(self, queue: Optional[Callable[[], None]]) -> None:
+    def _poll_jobs(self, queue: Queue[Callable[[], object] | None]) -> None:
         """
         A single thread runs this loop. It waits for an IO callable to be
         placed in a specific path's `Queue` where the queue contains
@@ -131,13 +131,12 @@ class NonBlockingIOManager:
             #   - func = file.write(b)
             #   - func = file.close()
             #   - func = None
-            # pyre-fixme[16]: `Optional` has no attribute `get`.
             func = queue.get()  # Blocks until item read.
             if func is None:  # Thread join signal.
                 break
             self._pool.submit(func).result()  # Wait for job to finish.
 
-    def _join(self, path: Optional[str] = None) -> bool:
+    def _join(self, path: str | None = None) -> bool:
         """
         Waits for write jobs for a specific path or waits for all
         write jobs for the path handler if no path is provided.
@@ -185,9 +184,9 @@ class NonBlockingIOManager:
 class NonBlockingIO(io.IOBase):
     def __init__(
         self,
-        notify_manager: Callable[[Callable[[], None]], None],
-        io_obj: Union[IO[str], IO[bytes]],
-        callback_after_file_close: Optional[Callable[[None], None]] = None,
+        notify_manager: Callable[[Callable[[], object]], None],
+        io_obj: IO[str] | IO[bytes],
+        callback_after_file_close: Callable[[None], None] | None = None,
     ) -> None:
         """
         Returned to the user on an `opena` call. Uses a Queue to manage the
@@ -239,11 +238,10 @@ class NonBlockingIO(io.IOBase):
     def seekable(self) -> bool:
         return True
 
-    def write(self, b: Union[bytes, bytearray]) -> None:
+    def write(self, b: bytes | bytearray) -> None:
         """
         Called on `f.write()`. Gives the manager the write job to call.
         """
-        # pyre-fixme[6]: For 1st param expected `() -> None` but got `() -> int`.
         # pyre-fixme[6]: For 1st param expected `bytes` but got `Union[bytearray,
         #  bytes]`.
         self._notify_manager(lambda: self._io.write(b))
@@ -253,7 +251,6 @@ class NonBlockingIO(io.IOBase):
         """
         Called on `f.seek()`.
         """
-        # pyre-fixme[6]: For 1st param expected `() -> None` but got `() -> int`.
         self._notify_manager(lambda: self._io.seek(offset, whence))
 
     def tell(self) -> int:
@@ -263,13 +260,10 @@ class NonBlockingIO(io.IOBase):
         raise ValueError("ioPath async writes does not support `tell` calls.")
 
     # pyre-fixme[14]: `truncate` overrides method defined in `IOBase` inconsistently.
-    # pyre-fixme[9]: size has type `int`; used as `None`.
-    # pyre-fixme[7]: Expected `int` but got implicit return value of `None`.
-    def truncate(self, size: int = None) -> int:
+    def truncate(self, size: int | None = None) -> None:
         """
         Called on `f.truncate()`.
         """
-        # pyre-fixme[6]: For 1st param expected `() -> None` but got `() -> int`.
         self._notify_manager(lambda: self._io.truncate(size))
 
     def close(self) -> None:
@@ -296,9 +290,9 @@ class NonBlockingBufferedIO(io.IOBase):
 
     def __init__(
         self,
-        notify_manager: Callable[[Callable[[], None]], None],
-        io_obj: Union[IO[str], IO[bytes]],
-        callback_after_file_close: Optional[Callable[[None], None]] = None,
+        notify_manager: Callable[[Callable[[], object]], None],
+        io_obj: IO[str] | IO[bytes],
+        callback_after_file_close: Callable[[None], None] | None = None,
         buffering: int = -1,
     ) -> None:
         """
@@ -328,7 +322,7 @@ class NonBlockingBufferedIO(io.IOBase):
     def seekable(self) -> bool:
         return False
 
-    def write(self, b: Union[bytes, bytearray]) -> None:
+    def write(self, b: bytes | bytearray) -> None:
         """
         Called on `f.write()`. Gives the manager the write job to call.
         """

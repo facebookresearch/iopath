@@ -11,8 +11,10 @@ import os
 import shutil
 import time
 from abc import abstractmethod
+from collections.abc import Iterator
 from datetime import datetime
-from typing import Any, Dict, IO, Iterator, List, Optional, Tuple, Union
+from types import TracebackType
+from typing import Any, IO
 
 from iopath.common.file_io import file_lock, get_cache_dir, PathHandler
 
@@ -88,7 +90,7 @@ class AzureBlobReader(io.RawIOBase):
         self._client: azure_blob.BlobClient = client
         self._chunk_iter: Iterator[bytes] = stream.chunks()
         self._chunk_size = chunk_size
-        self._chunk: Optional[bytes] = None
+        self._chunk: bytes | None = None
         self._chunk_pos = 0
 
     def _next_chunk(self) -> None:
@@ -164,7 +166,7 @@ class AzureBlobReader(io.RawIOBase):
         raise io.UnsupportedOperation()
 
     # pyrefly: ignore [bad-override]
-    def truncate(self, size: Optional[int]) -> int:
+    def truncate(self, size: int | None) -> int:
         raise io.UnsupportedOperation()
 
     def close(self) -> None:
@@ -191,9 +193,9 @@ class AzureBlobWriter(io.RawIOBase):
         self._client: azure_blob.BlobClient = client
         self._chunk_size = chunk_size
         self._chunk_idx = -1
-        self._chunk: Optional[io.BytesIO] = None
+        self._chunk: io.BytesIO | None = None
         # pyre-ignore[11]: Undefined or invalid type
-        self._blocks: List[azure_blob.BlobBlock] = []
+        self._blocks: list[azure_blob.BlobBlock] = []
 
     def _new_block_id(self) -> str:
         self._chunk_idx += 1
@@ -245,7 +247,7 @@ class AzureBlobWriter(io.RawIOBase):
         return self._append_to_chunk(b)
 
     # pyrefly: ignore [bad-override]
-    def truncate(self, size: Optional[int]) -> int:
+    def truncate(self, size: int | None) -> int:
         raise io.UnsupportedOperation()
 
     def flush(self) -> None:
@@ -281,8 +283,12 @@ class AzureBlobWriter(io.RawIOBase):
             )
             self._client.commit_block_list(self._blocks)
 
-    # pyre-fixme[2]: Missing parameter annotation
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
         # Make sure close() is called to commit everything
         self.close()
 
@@ -298,8 +304,8 @@ class AzureBlobPathHandler(PathHandler):
 
     def __init__(
         self,
-        token_provider: Optional[AzureBlobTokenProvider] = None,
-        cache_dir: Optional[str] = None,
+        token_provider: AzureBlobTokenProvider | None = None,
+        cache_dir: str | None = None,
     ) -> None:
         """
         Args:
@@ -315,10 +321,10 @@ class AzureBlobPathHandler(PathHandler):
         # pyre-ignore[4]: delay referencing Azure types
         self.client = None
 
-    def _get_supported_prefixes(self) -> List[str]:
+    def _get_supported_prefixes(self) -> list[str]:
         return self.SUPPORTED_PREFIXES
 
-    def _parse_uri(self, uri: str) -> Tuple[str, str, str]:
+    def _parse_uri(self, uri: str) -> tuple[str, str, str]:
         """
         Parses a "blob://<account>/<container>/<path>" URI into components
             (`account`, `container`, `path`)
@@ -363,7 +369,7 @@ class AzureBlobPathHandler(PathHandler):
 
         return self.client
 
-    def _get_blob_properties(self, path: str) -> Dict[str, Any]:
+    def _get_blob_properties(self, path: str) -> dict[str, Any]:
         account, container, blob = self._parse_uri(path)
         client = self._get_client(account)
         # pyrefly: ignore [missing-attribute]
@@ -437,13 +443,13 @@ class AzureBlobPathHandler(PathHandler):
             logger.exception(e)
             return False
 
-    def _ls(self, path: str, **kwargs: Any) -> List[str]:
+    def _ls(self, path: str, **kwargs: Any) -> list[str]:
         """
         List the contents of the directory at the provided URI.
         Args:
             path (str): A URI supported by this PathHandler
         Returns:
-            List[str]: list of contents in given path
+            list[str]: list of contents in given path
         """
         self._check_kwargs(kwargs)
 
@@ -544,7 +550,7 @@ class AzureBlobPathHandler(PathHandler):
         mode: str = "rb",
         buffering: int = -1,
         **kwargs: Any,
-    ) -> Union[IO[str], IO[bytes]]:
+    ) -> IO[str] | IO[bytes]:
         """
         Open a stream to a URI, similar to the built-in `open`.
         Args:
