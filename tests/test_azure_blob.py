@@ -12,9 +12,10 @@ import random
 import re
 import unittest
 import uuid
+from collections.abc import Generator
 from contextlib import contextmanager
 from tempfile import TemporaryDirectory
-from typing import Generator, NamedTuple
+from typing import NamedTuple
 
 from iopath.common.azure_blob import (
     AzureBlobPathHandler,

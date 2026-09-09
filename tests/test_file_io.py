@@ -8,8 +8,8 @@ import shutil
 import tempfile
 import unittest
 import uuid
+from collections.abc import Generator
 from contextlib import contextmanager
-from typing import Generator, Optional
 from unittest.mock import MagicMock, patch
 
 from iopath.common import file_io
@@ -29,10 +29,9 @@ from iopath.common.file_io import (
 
 # @patch("iopath.common.event_logger.EventLogger.log_event", side_effect=log_event_mock)
 class TestNativeIO(unittest.TestCase):
-
-    _tmpdir: Optional[str] = None
-    _filename: Optional[str] = None
-    _tmpfile: Optional[str] = None
+    _tmpdir: str | None = None
+    _filename: str | None = None
+    _tmpfile: str | None = None
     _tmpfile_contents = "Hello, World"
     _pathmgr = PathManager()
 
@@ -55,7 +54,7 @@ class TestNativeIO(unittest.TestCase):
     # pyre-fixme[2]: Parameter must be annotated.
     def run(self, result=None):
         with patch("iopath.common.event_logger.EventLogger.log_event"):
-            super(TestNativeIO, self).run(result)
+            super().run(result)
 
     def setUp(self) -> None:
         # Reset class variables set by methods before each test.
@@ -66,7 +65,7 @@ class TestNativeIO(unittest.TestCase):
 
     # @patch("iopath.common.event_logger.EventLogger.log_event")
     # pyre-fixme[3]: Return type must be annotated.
-    def log_event_mock(self, topic: Optional[str] = None):
+    def log_event_mock(self, topic: str | None = None):
         pass
 
     def test_open(self) -> None:
@@ -329,7 +328,7 @@ class TestHTTPIO(unittest.TestCase):
     # pyre-fixme[2]: Parameter must be annotated.
     def run(self, result=None):
         with patch("iopath.common.event_logger.EventLogger.log_event"):
-            super(TestHTTPIO, self).run(result)
+            super().run(result)
 
     @contextmanager
     def _patch_download(self) -> Generator[None, None, None]:
@@ -339,9 +338,10 @@ class TestHTTPIO(unittest.TestCase):
                 f.write("test")
             return dest
 
-        with patch.object(
-            file_io, "get_cache_dir", return_value=self._cache_dir
-        ), patch.object(file_io, "download", side_effect=fake_download):
+        with (
+            patch.object(file_io, "get_cache_dir", return_value=self._cache_dir),
+            patch.object(file_io, "download", side_effect=fake_download),
+        ):
             yield
 
     @classmethod
@@ -372,9 +372,10 @@ class TestHTTPIO(unittest.TestCase):
             self.assertTrue(os.path.isfile(local_path))
 
     def test_get_local_path_rejects_path_traversal(self) -> None:
-        with patch.object(
-            file_io, "get_cache_dir", return_value=self._cache_dir
-        ), patch.object(file_io, "download") as mock_download:
+        with (
+            patch.object(file_io, "get_cache_dir", return_value=self._cache_dir),
+            patch.object(file_io, "download") as mock_download,
+        ):
             with self.assertRaisesRegex(ValueError, "must not contain"):
                 self._pathmgr.get_local_path(
                     "https://example.com/models/../../escape.txt", force=True
@@ -387,9 +388,12 @@ class TestHTTPIO(unittest.TestCase):
         with tempfile.TemporaryDirectory() as outside_dir:
             os.symlink(outside_dir, symlink_dir)
             try:
-                with patch.object(
-                    file_io, "get_cache_dir", return_value=self._cache_dir
-                ), patch.object(file_io, "download") as mock_download:
+                with (
+                    patch.object(
+                        file_io, "get_cache_dir", return_value=self._cache_dir
+                    ),
+                    patch.object(file_io, "download") as mock_download,
+                ):
                     with self.assertRaisesRegex(ValueError, "cache path"):
                         self._pathmgr.get_local_path(
                             f"https://example.com/{symlink_name}/model.bin",
@@ -474,7 +478,7 @@ class TestLazyPath(unittest.TestCase):
     # pyre-fixme[2]: Parameter must be annotated.
     def run(self, result=None):
         with patch("iopath.common.event_logger.EventLogger.log_event"):
-            super(TestLazyPath, self).run(result)
+            super().run(result)
 
     def test_materialize(self) -> None:
         f = MagicMock(return_value="test")
@@ -525,7 +529,7 @@ class TestOneDrive(unittest.TestCase):
     # pyre-fixme[2]: Parameter must be annotated.
     def run(self, result=None):
         with patch("iopath.common.event_logger.EventLogger.log_event"):
-            super(TestOneDrive, self).run(result)
+            super().run(result)
 
     def test_one_drive_download(self) -> None:
         _direct_url = OneDrivePathHandler().create_one_drive_direct_download(self._url)

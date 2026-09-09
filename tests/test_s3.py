@@ -40,7 +40,7 @@ class TestsS3(unittest.TestCase):
 
     def run(self, result=None):
         with patch("iopath.common.event_logger.EventLogger.log_event"):
-            super(TestsS3, self).run(result)
+            super().run(result)
 
     #############################################
     # Shared
@@ -337,7 +337,7 @@ class TestsS3(unittest.TestCase):
         local_path_f1 = self.s3_pathhandler._get_local_path(s3_path_f1)
         local_path_f2 = self.s3_pathhandler._get_local_path(s3_path_f2)
 
-        with open(local_path_f1, "r") as f:
+        with open(local_path_f1) as f:
             self.assertEqual(f.read(), "This is a test of overwriting a string.")
         with open(local_path_f2, "rb") as f:
             self.assertEqual(f.read(), b"This is a test of writing bytes.")
@@ -357,7 +357,7 @@ class TestsS3(unittest.TestCase):
         for local_path in local_paths[1:]:
             self.assertEqual(local_path, local_paths[0])
 
-        with open(local_paths[0], "r") as f:
+        with open(local_paths[0]) as f:
             self.assertEqual(f.read(), "This is a test of overwriting a string.")
 
     ##############################################

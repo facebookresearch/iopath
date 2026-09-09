@@ -7,7 +7,7 @@ import os
 import shutil
 import tempfile
 import unittest
-from typing import cast, Optional
+from typing import cast
 from unittest.mock import Mock, patch
 
 from iopath.common.file_io import NativePathHandler, PathManager
@@ -26,14 +26,14 @@ class TestNativeIOAsync(unittest.TestCase):
     all `PathHandler`-s operate in the same way.
     """
 
-    _tmpdir: Optional[str] = None
+    _tmpdir: str | None = None
     _pathmgr = PathManager()
 
     # pyre-fixme[3]: Return type must be annotated.
     # pyre-fixme[2]: Parameter must be annotated.
     def run(self, result=None):
         with patch("iopath.common.event_logger.EventLogger.log_event"):
-            super(TestNativeIOAsync, self).run(result)
+            super().run(result)
 
     @classmethod
     def setUpClass(cls) -> None:
@@ -225,7 +225,7 @@ class TestNativeIOAsync(unittest.TestCase):
         def cb():
             # Insert a test to make sure `_file_tmp` was closed before
             # the callback is called.
-            with open(_file_tmp, "r") as f:
+            with open(_file_tmp) as f:
                 self.assertEqual(f.read(), _data)
             self._pathmgr.copy(_file_tmp, _file, overwrite=True)
 
@@ -242,9 +242,9 @@ class TestNativeIOAsync(unittest.TestCase):
         mock_cb.assert_called_once()
 
         # Data should have been written to both `_file_tmp` and `_file`.
-        with open(_file_tmp, "r") as f:
+        with open(_file_tmp) as f:
             self.assertEqual(f.read(), _data)
-        with open(_file, "r") as f:
+        with open(_file) as f:
             self.assertEqual(f.read(), _data)
 
     def test_opena_with_callback_only_called_once(self) -> None:
@@ -347,7 +347,7 @@ class TestNativeIOAsync(unittest.TestCase):
 
 
 class TestNonBlockingIO(unittest.TestCase):
-    _tmpdir: Optional[str] = None
+    _tmpdir: str | None = None
     _io_manager = NonBlockingIOManager(buffered=False)
     _buffered_io_manager = NonBlockingIOManager(buffered=True)
 
@@ -393,7 +393,7 @@ class TestNonBlockingIO(unittest.TestCase):
             self.assertTrue(self._io_manager._join())
             self.assertTrue(self._io_manager._close_thread_pool())
 
-        with open(_file, "r") as f:
+        with open(_file) as f:
             self.assertEqual(f.read(), "." * 6)
 
     def test_buffered_io_manager(self) -> None:

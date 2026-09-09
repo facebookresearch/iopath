@@ -16,7 +16,7 @@ class TestDownload(unittest.TestCase):
     # pyre-fixme[2]: Parameter must be annotated.
     def run(self, result=None):
         with patch("iopath.common.event_logger.EventLogger.log_event"):
-            super(TestDownload, self).run(result)
+            super().run(result)
 
     def test_download(self) -> None:
         download(
