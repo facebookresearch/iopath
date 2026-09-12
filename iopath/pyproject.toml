@@ -1,0 +1,13 @@
+# Buck owns this internal wheel's build and version; the parent setup.py
+# still builds the separate OSS package. Keep enrollment beside the sources
+# so their commits advance forgewheel's subtree stamp.
+[project]
+name = "iopath"
+version = "0.1.10"
+
+[tool.forgewheel.buck]
+target = "fbcode//msl/rl:iopath.whl_py3.12"
+buildkite_queue = "tw-cpu-x86-big"
+
+[tool.uv]
+publish-url = "https://vault.x2p.facebook.net/upload/tbr-dev"
