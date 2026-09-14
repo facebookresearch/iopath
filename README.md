@@ -17,8 +17,7 @@ pip install -U iopath
 ### 2. Install from Anaconda Cloud (updated nightly)
 
 ```
-conda install -c conda-forge yacs
-conda install -c iopath iopath
+conda install -c conda-forge iopath    # works for v0.1.10, python 3.12
 ```
 
 ### 3. Install latest from GitHub
