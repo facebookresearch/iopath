@@ -15,7 +15,7 @@ from collections.abc import Callable, Iterator, MutableMapping
 from io import IOBase
 from pathlib import Path, PurePosixPath
 from types import TracebackType
-from typing import Any, IO, Literal, overload
+from typing import Any, IO, Literal, overload, TypeAlias
 from urllib.parse import urlparse
 
 import aiofiles
@@ -27,6 +27,13 @@ from typing_extensions import Protocol
 
 
 __all__ = ["LazyPath", "PathManager", "get_cache_dir", "file_lock"]
+
+
+_BinaryOpenMode: TypeAlias = Literal["rb", "wb", "ab", "xb", "r+b", "w+b", "a+b", "x+b"]
+_TextOpenMode: TypeAlias = Literal[
+    "r", "w", "a", "x", "r+", "w+", "a+", "x+", "rt", "wt"
+]
+_OpenMode: TypeAlias = _BinaryOpenMode | _TextOpenMode
 
 
 def get_cache_dir(cache_dir: str | None = None) -> str:
@@ -1155,11 +1162,10 @@ class PathManager:
         return self.get_path_handler(path)._openw(path, mode, buffering, **kwargs)
 
     @overload
-    # pyrefly: ignore [inconsistent-overload-default]
     def open(
         self,
         path: str,
-        mode: Literal["rb", "wb", "ab", "xb", "r+b", "w+b", "a+b", "x+b"] = ...,
+        mode: _BinaryOpenMode,
         buffering: int = ...,
         **kwargs: Any,
     ) -> IO[bytes]: ...
@@ -1168,13 +1174,13 @@ class PathManager:
     def open(
         self,
         path: str,
-        mode: Literal["r", "w", "a", "x", "r+", "w+", "a+", "x+", "rt", "wt"] = ...,
+        mode: _TextOpenMode = ...,
         buffering: int = ...,
         **kwargs: Any,
     ) -> IO[str]: ...
 
     def open(
-        self, path: str, mode: str = "r", buffering: int = -1, **kwargs: Any
+        self, path: str, mode: _OpenMode = "r", buffering: int = -1, **kwargs: Any
     ) -> IO[str] | IO[bytes]:
         """
         Open a stream to a URI, similar to the built-in `open`.

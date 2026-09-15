@@ -10,6 +10,7 @@ import unittest
 import uuid
 from collections.abc import Generator
 from contextlib import contextmanager
+from typing import assert_type, IO
 from unittest.mock import MagicMock, patch
 
 from iopath.common import file_io
@@ -73,6 +74,18 @@ class TestNativeIO(unittest.TestCase):
         # pyre-ignore
         with self._pathmgr.open(self._tmpfile, "r") as f:
             self.assertEqual(f.read(), self._tmpfile_contents)
+
+    def test_open_return_types(self) -> None:
+        path = self._tmpfile
+        assert path is not None
+
+        with self._pathmgr.open(path) as f:
+            assert_type(f, IO[str])
+            self.assertEqual(f.read(), self._tmpfile_contents)
+
+        with self._pathmgr.open(path, "rb") as f:
+            assert_type(f, IO[bytes])
+            self.assertEqual(f.read(), self._tmpfile_contents.encode())
 
     def test_factory_open(self) -> None:
         # pyrefly: ignore [no-matching-overload]
