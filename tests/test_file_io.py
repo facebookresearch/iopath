@@ -30,9 +30,9 @@ from iopath.common.file_io import (
 
 # @patch("iopath.common.event_logger.EventLogger.log_event", side_effect=log_event_mock)
 class TestNativeIO(unittest.TestCase):
-    _tmpdir: str | None = None
-    _filename: str | None = None
-    _tmpfile: str | None = None
+    _tmpdir: str
+    _filename: str
+    _tmpfile: str
     _tmpfile_contents = "Hello, World"
     _pathmgr = PathManager()
 
@@ -48,12 +48,9 @@ class TestNativeIO(unittest.TestCase):
     @classmethod
     def tearDownClass(cls) -> None:
         # Cleanup temp working dir.
-        if cls._tmpdir is not None:
-            shutil.rmtree(cls._tmpdir)  # type: ignore
+        shutil.rmtree(cls._tmpdir)
 
-    # pyre-fixme[3]: Return type must be annotated.
-    # pyre-fixme[2]: Parameter must be annotated.
-    def run(self, result=None):
+    def run(self, result: unittest.TestResult | None = None) -> None:
         with patch("iopath.common.event_logger.EventLogger.log_event"):
             super().run(result)
 
@@ -65,19 +62,16 @@ class TestNativeIO(unittest.TestCase):
         self._pathmgr._async_handlers.clear()
 
     # @patch("iopath.common.event_logger.EventLogger.log_event")
-    # pyre-fixme[3]: Return type must be annotated.
-    def log_event_mock(self, topic: str | None = None):
+    def log_event_mock(self, topic: str | None = None) -> None:
         pass
 
     def test_open(self) -> None:
         # with patch("iopath.common.event_logger.EventLogger.log_event") as foo:
-        # pyre-ignore
         with self._pathmgr.open(self._tmpfile, "r") as f:
             self.assertEqual(f.read(), self._tmpfile_contents)
 
     def test_open_return_types(self) -> None:
         path = self._tmpfile
-        assert path is not None
 
         with self._pathmgr.open(path) as f:
             assert_type(f, IO[str])
@@ -88,12 +82,10 @@ class TestNativeIO(unittest.TestCase):
             self.assertEqual(f.read(), self._tmpfile_contents.encode())
 
     def test_factory_open(self) -> None:
-        # pyrefly: ignore [no-matching-overload]
         with g_pathmgr.open(self._tmpfile, "r") as f:
             self.assertEqual(f.read(), self._tmpfile_contents)
 
         _pathmgr = PathManagerFactory.get("test_pm")
-        # pyre-fixme[6]: For 1st param expected `str` but got `Optional[str]`.
         with _pathmgr.open(self._tmpfile, "r") as f:
             self.assertEqual(f.read(), self._tmpfile_contents)
 
@@ -102,9 +94,8 @@ class TestNativeIO(unittest.TestCase):
     def test_open_args(self) -> None:
         # with patch("iopath.common.event_logger.EventLogger.log_event") as foo:
         self._pathmgr.set_strict_kwargs_checking(True)
-        # pyrefly: ignore [no-matching-overload]
         f = self._pathmgr.open(
-            self._tmpfile,  # type: ignore
+            self._tmpfile,
             mode="r",
             buffering=1,
             encoding="UTF-8",
@@ -117,52 +108,39 @@ class TestNativeIO(unittest.TestCase):
 
     def test_get_local_path(self) -> None:
         self.assertEqual(
-            # pyre-ignore
             self._pathmgr.get_local_path(self._tmpfile),
             self._tmpfile,
         )
 
     def test_get_local_path_forced(self) -> None:
         self.assertEqual(
-            # pyre-ignore
             self._pathmgr.get_local_path(self._tmpfile, force=True),
             self._tmpfile,
         )
 
     def test_exists(self) -> None:
-        # pyre-ignore
         self.assertTrue(self._pathmgr.exists(self._tmpfile))
-        # pyre-fixme[6]: For 1st argument expected `Union[PathLike[str], str]` but
-        #  got `Optional[str]`.
         fake_path = os.path.join(self._tmpdir, uuid.uuid4().hex)
         self.assertFalse(self._pathmgr.exists(fake_path))
 
     def test_isfile(self) -> None:
-        self.assertTrue(self._pathmgr.isfile(self._tmpfile))  # pyre-ignore
+        self.assertTrue(self._pathmgr.isfile(self._tmpfile))
         # This is a directory, not a file, so it should fail
-        self.assertFalse(self._pathmgr.isfile(self._tmpdir))  # pyre-ignore
+        self.assertFalse(self._pathmgr.isfile(self._tmpdir))
         # This is a non-existing path, so it should fail
-        # pyre-fixme[6]: For 1st argument expected `Union[PathLike[str], str]` but
-        #  got `Optional[str]`.
         fake_path = os.path.join(self._tmpdir, uuid.uuid4().hex)
         self.assertFalse(self._pathmgr.isfile(fake_path))
 
     def test_isdir(self) -> None:
-        # pyre-ignore
         self.assertTrue(self._pathmgr.isdir(self._tmpdir))
         # This is a file, not a directory, so it should fail
-        # pyre-ignore
         self.assertFalse(self._pathmgr.isdir(self._tmpfile))
         # This is a non-existing path, so it should fail
-        # pyre-fixme[6]: For 1st argument expected `Union[PathLike[str], str]` but
-        #  got `Optional[str]`.
         fake_path = os.path.join(self._tmpdir, uuid.uuid4().hex)
         self.assertFalse(self._pathmgr.isdir(fake_path))
 
     def test_ls(self) -> None:
         # Create some files in the tempdir to ls out.
-        # pyre-fixme[6]: For 1st argument expected `typing_extensions.LiteralString`
-        #  but got `Optional[str]`.
         root_dir = os.path.join(self._tmpdir, "ls")
         os.makedirs(root_dir, exist_ok=True)
         files = sorted(["foo.txt", "bar.txt", "baz.txt"])
@@ -176,27 +154,24 @@ class TestNativeIO(unittest.TestCase):
         shutil.rmtree(root_dir)
 
     def test_mkdirs(self) -> None:
-        # pyre-fixme[6]: For 1st argument expected `typing_extensions.LiteralString`
-        #  but got `Optional[str]`.
         new_dir_path = os.path.join(self._tmpdir, "new", "tmp", "dir")
         self.assertFalse(self._pathmgr.exists(new_dir_path))
         self._pathmgr.mkdirs(new_dir_path)
         self.assertTrue(self._pathmgr.exists(new_dir_path))
 
     def test_copy(self) -> None:
-        _tmpfile_2 = self._tmpfile + "2"  # pyre-ignore
+        _tmpfile_2 = self._tmpfile + "2"
         _tmpfile_2_contents = "something else"
         with open(_tmpfile_2, "w") as f:
             f.write(_tmpfile_2_contents)
             f.flush()
-        # pyre-fixme[6]: For 1st param expected `str` but got `Optional[str]`.
         self.assertTrue(self._pathmgr.copy(self._tmpfile, _tmpfile_2, overwrite=True))
         with self._pathmgr.open(_tmpfile_2, "r") as f:
             self.assertEqual(f.read(), self._tmpfile_contents)
 
     def test_move(self) -> None:
-        _tmpfile_2 = self._tmpfile + "2" + uuid.uuid4().hex  # pyre-ignore
-        _tmpfile_3 = self._tmpfile + "3_" + uuid.uuid4().hex  # pyre-ignore
+        _tmpfile_2 = self._tmpfile + "2" + uuid.uuid4().hex
+        _tmpfile_3 = self._tmpfile + "3_" + uuid.uuid4().hex
         _tmpfile_2_contents = "Hello Move"
         with open(_tmpfile_2, "w") as f:
             f.write(_tmpfile_2_contents)
@@ -208,16 +183,14 @@ class TestNativeIO(unittest.TestCase):
         self._pathmgr.rm(_tmpfile_3)
 
     def test_symlink(self) -> None:
-        _symlink = self._tmpfile + "_symlink"  # pyre-ignore
-        self.assertTrue(self._pathmgr.symlink(self._tmpfile, _symlink))  # pyre-ignore
+        _symlink = self._tmpfile + "_symlink"
+        self.assertTrue(self._pathmgr.symlink(self._tmpfile, _symlink))
         with self._pathmgr.open(_symlink) as f:
             self.assertEqual(f.read(), self._tmpfile_contents)
         self.assertEqual(os.readlink(_symlink), self._tmpfile)
         os.remove(_symlink)
 
     def test_rm(self) -> None:
-        # pyre-fixme[6]: For 1st argument expected `typing_extensions.LiteralString`
-        #  but got `Optional[str]`.
         with open(os.path.join(self._tmpdir, "test_rm.txt"), "w") as f:
             rm_file = f.name
             f.write(self._tmpfile_contents)
@@ -230,20 +203,15 @@ class TestNativeIO(unittest.TestCase):
 
     def test_set_cwd(self) -> None:
         # File not found since cwd not set yet.
-        # pyre-fixme[6]: For 1st param expected `str` but got `Optional[str]`.
         self.assertFalse(self._pathmgr.isfile(self._filename))
-        # pyre-fixme[6]: For 1st param expected `str` but got `Optional[str]`.
         self.assertTrue(self._pathmgr.isfile(self._tmpfile))
         # Once cwd is set, relative file path works.
         self._pathmgr.set_cwd(self._tmpdir)
-        # pyre-fixme[6]: For 1st param expected `str` but got `Optional[str]`.
         self.assertTrue(self._pathmgr.isfile(self._filename))
 
         # Set cwd to None
         self._pathmgr.set_cwd(None)
-        # pyre-fixme[6]: For 1st param expected `str` but got `Optional[str]`.
         self.assertFalse(self._pathmgr.isfile(self._filename))
-        # pyre-fixme[6]: For 1st param expected `str` but got `Optional[str]`.
         self.assertTrue(self._pathmgr.isfile(self._tmpfile))
 
         # Set cwd to invalid path
@@ -254,7 +222,6 @@ class TestNativeIO(unittest.TestCase):
         self._pathmgr.set_cwd(self._tmpdir)
         # Make sure _get_path_with_cwd() returns correctly.
         self.assertEqual(
-            # pyre-fixme[6]: For 1st param expected `str` but got `Optional[str]`.
             self._pathmgr._native_path_handler._get_path_with_cwd(self._filename),
             self._tmpfile,
         )
@@ -266,48 +233,44 @@ class TestNativeIO(unittest.TestCase):
     def test_bad_args(self) -> None:
         # TODO (T58240718): Replace with dynamic checks
         with self.assertRaises(ValueError):
-            self._pathmgr.copy(self._tmpfile, self._tmpfile, foo="foo")  # type: ignore
+            self._pathmgr.copy(self._tmpfile, self._tmpfile, foo="foo")
         with self.assertRaises(ValueError):
-            self._pathmgr.exists(self._tmpfile, foo="foo")  # type: ignore
+            self._pathmgr.exists(self._tmpfile, foo="foo")
         with self.assertRaises(ValueError):
-            self._pathmgr.get_local_path(self._tmpfile, foo="foo")  # type: ignore
+            self._pathmgr.get_local_path(self._tmpfile, foo="foo")
         with self.assertRaises(ValueError):
-            self._pathmgr.isdir(self._tmpfile, foo="foo")  # type: ignore
+            self._pathmgr.isdir(self._tmpfile, foo="foo")
         with self.assertRaises(ValueError):
-            self._pathmgr.isfile(self._tmpfile, foo="foo")  # type: ignore
+            self._pathmgr.isfile(self._tmpfile, foo="foo")
         with self.assertRaises(ValueError):
-            self._pathmgr.ls(self._tmpfile, foo="foo")  # type: ignore
+            self._pathmgr.ls(self._tmpfile, foo="foo")
         with self.assertRaises(ValueError):
-            self._pathmgr.mkdirs(self._tmpfile, foo="foo")  # type: ignore
+            self._pathmgr.mkdirs(self._tmpfile, foo="foo")
         with self.assertRaises(ValueError):
-            self._pathmgr.open(self._tmpfile, foo="foo")  # type: ignore
+            self._pathmgr.open(self._tmpfile, foo="foo")
         with self.assertRaises(ValueError):
-            self._pathmgr.opena(self._tmpfile, foo="foo")  # type: ignore
+            self._pathmgr.opena(self._tmpfile, foo="foo")
         with self.assertRaises(ValueError):
-            self._pathmgr.rm(self._tmpfile, foo="foo")  # type: ignore
+            self._pathmgr.rm(self._tmpfile, foo="foo")
         with self.assertRaises(ValueError):
-            self._pathmgr.set_cwd(self._tmpdir, foo="foo")  # type: ignore
+            self._pathmgr.set_cwd(self._tmpdir, foo="foo")
 
         self._pathmgr.set_strict_kwargs_checking(False)
 
-        self._pathmgr.copy(
-            self._tmpfile, self._tmpfile + "2", foo="foo"  # type: ignore
-        )
-        self._pathmgr.exists(self._tmpfile, foo="foo")  # type: ignore
-        self._pathmgr.get_local_path(self._tmpfile, foo="foo")  # type: ignore
-        self._pathmgr.isdir(self._tmpfile, foo="foo")  # type: ignore
-        self._pathmgr.isfile(self._tmpfile, foo="foo")  # type: ignore
-        self._pathmgr.ls(self._tmpdir, foo="foo")  # type: ignore
-        self._pathmgr.mkdirs(self._tmpdir, foo="foo")  # type: ignore
-        f = self._pathmgr.open(self._tmpfile, foo="foo")  # type: ignore
+        self._pathmgr.copy(self._tmpfile, self._tmpfile + "2", foo="foo")
+        self._pathmgr.exists(self._tmpfile, foo="foo")
+        self._pathmgr.get_local_path(self._tmpfile, foo="foo")
+        self._pathmgr.isdir(self._tmpfile, foo="foo")
+        self._pathmgr.isfile(self._tmpfile, foo="foo")
+        self._pathmgr.ls(self._tmpdir, foo="foo")
+        self._pathmgr.mkdirs(self._tmpdir, foo="foo")
+        f = self._pathmgr.open(self._tmpfile, foo="foo")
         f.close()
-        # pyre-fixme[6]: For 1st argument expected `typing_extensions.LiteralString`
-        #  but got `Optional[str]`.
         with open(os.path.join(self._tmpdir, "test_rm.txt"), "w") as f:
             rm_file = f.name
             f.write(self._tmpfile_contents)
             f.flush()
-        self._pathmgr.rm(rm_file, foo="foo")  # type: ignore
+        self._pathmgr.rm(rm_file, foo="foo")
 
     def test_open_read_async(self) -> None:
         # Test reading a binary file.
@@ -318,7 +281,7 @@ class TestNativeIO(unittest.TestCase):
                 "test_float": 1.0,
                 "test_bool": True,
             }
-            tmp_binary_path = os.path.join(self._tmpdir, "test_binary.bin")  # type: ignore
+            tmp_binary_path = os.path.join(self._tmpdir, "test_binary.bin")
             pickle.dump(test_data, open(tmp_binary_path, "wb"))
             reader = self._pathmgr.opena(tmp_binary_path, "rb")
             buf = asyncio.run(reader.read())
@@ -327,7 +290,7 @@ class TestNativeIO(unittest.TestCase):
 
         # Test reading a text file.
         with self.subTest("read text"):
-            reader = self._pathmgr.opena(self._tmpfile, "r")  # type: ignore
+            reader = self._pathmgr.opena(self._tmpfile, "r")
             buf = asyncio.run(reader.read())
             self.assertEqual(self._tmpfile_contents, buf, "is " + buf)
 
@@ -337,9 +300,7 @@ class TestHTTPIO(unittest.TestCase):
     _filename = "facebook.html"
     _pathmgr = PathManager()
 
-    # pyre-fixme[3]: Return type must be annotated.
-    # pyre-fixme[2]: Parameter must be annotated.
-    def run(self, result=None):
+    def run(self, result: unittest.TestResult | None = None) -> None:
         with patch("iopath.common.event_logger.EventLogger.log_event"):
             super().run(result)
 
@@ -443,34 +404,32 @@ class TestHTTPIO(unittest.TestCase):
 
     def test_bad_args(self) -> None:
         with self.assertRaises(NotImplementedError):
-            self._pathmgr.copy(
-                self._remote_uri, self._remote_uri, foo="foo"  # type: ignore
-            )
+            self._pathmgr.copy(self._remote_uri, self._remote_uri, foo="foo")
         with self.assertRaises(NotImplementedError):
-            self._pathmgr.exists(self._remote_uri, foo="foo")  # type: ignore
+            self._pathmgr.exists(self._remote_uri, foo="foo")
         with self.assertRaises(ValueError):
-            self._pathmgr.get_local_path(self._remote_uri, foo="foo")  # type: ignore
+            self._pathmgr.get_local_path(self._remote_uri, foo="foo")
         with self.assertRaises(NotImplementedError):
-            self._pathmgr.isdir(self._remote_uri, foo="foo")  # type: ignore
+            self._pathmgr.isdir(self._remote_uri, foo="foo")
         with self.assertRaises(NotImplementedError):
-            self._pathmgr.isfile(self._remote_uri, foo="foo")  # type: ignore
+            self._pathmgr.isfile(self._remote_uri, foo="foo")
         with self.assertRaises(NotImplementedError):
-            self._pathmgr.ls(self._remote_uri, foo="foo")  # type: ignore
+            self._pathmgr.ls(self._remote_uri, foo="foo")
         with self.assertRaises(NotImplementedError):
-            self._pathmgr.mkdirs(self._remote_uri, foo="foo")  # type: ignore
+            self._pathmgr.mkdirs(self._remote_uri, foo="foo")
         with self.assertRaises(ValueError):
-            self._pathmgr.open(self._remote_uri, foo="foo")  # type: ignore
+            self._pathmgr.open(self._remote_uri, foo="foo")
         with self.assertRaises(ValueError):
-            self._pathmgr.opena(self._remote_uri, foo="foo")  # type: ignore
+            self._pathmgr.opena(self._remote_uri, foo="foo")
         with self.assertRaises(NotImplementedError):
-            self._pathmgr.rm(self._remote_uri, foo="foo")  # type: ignore
+            self._pathmgr.rm(self._remote_uri, foo="foo")
         with self.assertRaises(NotImplementedError):
-            self._pathmgr.set_cwd(self._remote_uri, foo="foo")  # type: ignore
+            self._pathmgr.set_cwd(self._remote_uri, foo="foo")
 
         self._pathmgr.set_strict_kwargs_checking(False)
 
-        self._pathmgr.get_local_path(self._remote_uri, foo="foo")  # type: ignore
-        f = self._pathmgr.open(self._remote_uri, foo="foo")  # type: ignore
+        self._pathmgr.get_local_path(self._remote_uri, foo="foo")
+        f = self._pathmgr.open(self._remote_uri, foo="foo")
         f.close()
         self._pathmgr.set_strict_kwargs_checking(True)
 
@@ -487,9 +446,7 @@ class TestHTTPIO(unittest.TestCase):
 class TestLazyPath(unittest.TestCase):
     _pathmgr = PathManager()
 
-    # pyre-fixme[3]: Return type must be annotated.
-    # pyre-fixme[2]: Parameter must be annotated.
-    def run(self, result=None):
+    def run(self, result: unittest.TestResult | None = None) -> None:
         with patch("iopath.common.event_logger.EventLogger.log_event"):
             super().run(result)
 
@@ -538,9 +495,7 @@ class TestLazyPath(unittest.TestCase):
 class TestOneDrive(unittest.TestCase):
     _url = "https://1drv.ms/u/s!Aus8VCZ_C_33gQbJsUPTIj3rQu99"
 
-    # pyre-fixme[3]: Return type must be annotated.
-    # pyre-fixme[2]: Parameter must be annotated.
-    def run(self, result=None):
+    def run(self, result: unittest.TestResult | None = None) -> None:
         with patch("iopath.common.event_logger.EventLogger.log_event"):
             super().run(result)
 
