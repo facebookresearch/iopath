@@ -1,6 +1,7 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
 
 
+from collections.abc import Mapping
 from typing import Any, TypeVar
 
 
@@ -47,9 +48,9 @@ class EventLogger:
         if b_tmetry_available:
             self._evt.set(key, val)
 
-    def add_keys(self, kvs: dict[str, VTYPE]) -> None:
+    def add_keys(self, kvs: Mapping[str, str | int | bool | float]) -> None:
         if b_tmetry_available:
-            self._evt.set_keys(kvs)
+            self._evt.set_keys(dict(kvs))
 
     def _sample_record(self) -> bool:
         """

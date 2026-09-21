@@ -11,7 +11,7 @@ import tempfile
 import traceback
 import uuid
 from collections import OrderedDict
-from collections.abc import Callable, Iterator, MutableMapping
+from collections.abc import Callable, Iterator, Mapping, MutableMapping
 from io import IOBase
 from pathlib import Path, PurePosixPath
 from types import TracebackType
@@ -21,7 +21,7 @@ from urllib.parse import urlparse
 import aiofiles
 import portalocker  # type: ignore
 from iopath.common.download import download
-from iopath.common.event_logger import EventLogger, VTYPE
+from iopath.common.event_logger import EventLogger
 from iopath.common.non_blocking_io import NonBlockingIOManager
 from typing_extensions import Protocol
 
@@ -1075,7 +1075,9 @@ class PathManager:
                 return handler
         return self._native_path_handler
 
-    def __log_telemetry_keys(self, handler: PathHandler, kvs: dict[str, VTYPE]) -> None:
+    def __log_telemetry_keys(
+        self, handler: PathHandler, kvs: Mapping[str, str | int | bool | float]
+    ) -> None:
         """
         Logs a dictionary of key-value pairs to a given path handler.
 
@@ -1097,8 +1099,9 @@ class PathManager:
                 )
                 self._enable_logging = False
 
-    #  the function's parameters.
-    def __get_open_keys(self, path: str, mode: str, buffering: int) -> dict[str, VTYPE]:
+    def __get_open_keys(
+        self, path: str, mode: str, buffering: int
+    ) -> dict[str, str | int]:
         """
         Helper function to return common set of key-value pairs applicable to open apis.
 
@@ -1390,9 +1393,11 @@ class PathManager:
             bret = handler._get_local_path(path, force=force, **kwargs)
         except TypeError:
             bret = handler._get_local_path(path, **kwargs)
-        kvs = {"op": "get_local_path", "path": path, "force": force}
-        # pyre-fixme[6]: For 2nd param expected `Dict[str, Variable[VTYPE <: [str,
-        #  int, bool, float]]]` but got `Dict[str, Union[bool, str]]`.
+        kvs: dict[str, str | int | bool | float] = {
+            "op": "get_local_path",
+            "path": path,
+            "force": force,
+        }
         self.__log_telemetry_keys(handler, kvs)
         return bret
 
@@ -1416,7 +1421,7 @@ class PathManager:
         assert os.path.exists(local_path), f"local_path = {local_path}"
         handler = self.get_path_handler(dst_path)
 
-        kvs = {
+        kvs: dict[str, str | int | bool | float] = {
             "op": "copy_from_local",
             "path": local_path,
             "dst_path": dst_path,
@@ -1425,8 +1430,6 @@ class PathManager:
         bret = handler._copy_from_local(
             local_path=local_path, dst_path=dst_path, overwrite=overwrite, **kwargs
         )
-        # pyre-fixme[6]: For 2nd param expected `Dict[str, Variable[VTYPE <: [str,
-        #  int, bool, float]]]` but got `Dict[str, Union[bool, str]]`.
         self.__log_telemetry_keys(handler, kvs)
         # pyre-fixme[7]: Expected `bool` but got `None`.
         return bret
@@ -1554,7 +1557,10 @@ class PathManager:
             bret = True
         else:
             bret = False
-        kvs = {"op": "set_cwd", "path": path or "null"}
+        kvs: dict[str, str | int | bool | float] = {
+            "op": "set_cwd",
+            "path": path or "null",
+        }
         self.__log_telemetry_keys(handler, kvs)
         return bret
 
