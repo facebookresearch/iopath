@@ -169,6 +169,20 @@ class TestNativeIO(unittest.TestCase):
         with self._pathmgr.open(_tmpfile_2, "r") as f:
             self.assertEqual(f.read(), self._tmpfile_contents)
 
+    def test_copy_from_local_returns_false_without_handler_status(self) -> None:
+        assert self._tmpfile is not None
+        with patch.object(
+            self._pathmgr._native_path_handler,
+            "_copy_from_local",
+            return_value=None,
+        ):
+            self.assertFalse(
+                self._pathmgr.copy_from_local(
+                    self._tmpfile,
+                    f"{self._tmpfile}.copy",
+                )
+            )
+
     def test_move(self) -> None:
         _tmpfile_2 = self._tmpfile + "2" + uuid.uuid4().hex
         _tmpfile_3 = self._tmpfile + "3_" + uuid.uuid4().hex

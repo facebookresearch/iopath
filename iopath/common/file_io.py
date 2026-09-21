@@ -259,7 +259,8 @@ class PathHandler(EventLogger):
             overwrite (bool): Bool flag for forcing overwrite of existing URI
 
         Returns:
-            status (bool): True on success
+            status (bool): True on success. Implementations that return None are
+                reported as failure by `PathManager.copy_from_local`.
         """
         raise NotImplementedError()
 
@@ -1416,7 +1417,8 @@ class PathManager:
             overwrite (bool): Bool flag for forcing overwrite of existing URI
 
         Returns:
-            status (bool): True on success
+            status (bool): True on success. A handler whose `_copy_from_local`
+                returns None is reported as failure.
         """
         assert os.path.exists(local_path), f"local_path = {local_path}"
         handler = self.get_path_handler(dst_path)
@@ -1431,8 +1433,7 @@ class PathManager:
             local_path=local_path, dst_path=dst_path, overwrite=overwrite, **kwargs
         )
         self.__log_telemetry_keys(handler, kvs)
-        # pyre-fixme[7]: Expected `bool` but got `None`.
-        return bret
+        return bret if bret is not None else False
 
     def exists(self, path: str, **kwargs: Any) -> bool:
         """
