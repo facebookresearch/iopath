@@ -146,17 +146,20 @@ class AzureBlobReader(io.RawIOBase):
 
     def readall(self) -> bytes:
         stream = io.BytesIO()
-        self.readinto(stream)
+        data = self._get_chunk_data(self._chunk_size)
+        while data:
+            stream.write(data)
+            data = self._get_chunk_data(self._chunk_size)
         return stream.getvalue()
 
-    # pyre-ignore[2]: stream is any bytes-like object
-    def readinto(self, stream) -> None:
-        size = self._chunk_size
-        data = self._get_chunk_data(size)
-        # Getting zero bytes back == EOF
-        while len(data) > 0:
-            stream.write(data)
-            data = self._get_chunk_data(size)
+    # pyre-ignore[2]: buffer is any writable bytes-like object
+    def readinto(self, buffer) -> int:
+        view = memoryview(buffer).cast("B")
+        if view.readonly:
+            raise TypeError("readinto() requires a writable buffer")
+        data = self._get_chunk_data(len(view))
+        view[: len(data)] = data
+        return len(data)
 
     def writeable(self) -> bool:
         return False
