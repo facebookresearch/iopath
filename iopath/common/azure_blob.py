@@ -360,7 +360,7 @@ class AzureBlobPathHandler(PathHandler):
 
     # pyre-ignore[3]: avoid referencing Azure types
     def _get_client(self, account: str):
-        if not hasattr(self, "client"):
+        if self.client is None:
             account_uri = f"https://{account}.blob.core.windows.net"
             sas_token = self.token_provider.get_sas_token(account)
             # pyrefly: ignore [missing-attribute]
