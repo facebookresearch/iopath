@@ -6,6 +6,7 @@ import os
 import shutil
 from collections.abc import Callable
 from urllib import request
+from urllib.parse import urlsplit
 
 
 def download(
@@ -27,9 +28,7 @@ def download(
     """
     os.makedirs(dir, exist_ok=True)
     if filename is None:
-        filename = url.split("/")[-1]
-        if os.name == "nt" and "?" in filename:  # for windows
-            filename = filename[: filename.index("?")]
+        filename = urlsplit(url).path.rsplit("/", 1)[-1]
         assert len(filename), "Cannot obtain filename from url {}".format(url)
     fpath = os.path.join(dir, filename)
     logger = logging.getLogger(__name__)
