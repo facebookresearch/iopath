@@ -351,6 +351,26 @@ class TestNonBlockingIO(unittest.TestCase):
     _io_manager = NonBlockingIOManager(buffered=False)
     _buffered_io_manager = NonBlockingIOManager(buffered=True)
 
+    def test_close_after_join(self) -> None:
+        for buffered in (False, True):
+            with self.subTest(buffered=buffered):
+                manager = NonBlockingIOManager(buffered=buffered)
+                underlying = io.BytesIO()
+                callback = Mock()
+                writer = manager.get_non_blocking_io(
+                    "closed-file", underlying, callback_after_file_close=callback
+                )
+                try:
+                    writer.write(b"contents")
+                    writer.close()
+                    self.assertTrue(manager._join())
+                    self.assertTrue(underlying.closed)
+                    writer.close()
+                    callback.assert_called_once_with()
+                finally:
+                    manager._join()
+                    manager._close_thread_pool()
+
     @classmethod
     def setUpClass(cls) -> None:
         cls._tmpdir = tempfile.mkdtemp()
