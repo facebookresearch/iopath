@@ -275,6 +275,8 @@ class NonBlockingIO(io.IOBase):
         # `ThreadPool` first closes the file and then executes the callback.
         # We only execute the callback once even if there are multiple
         # `f.close` calls.
+        if self._close_called:
+            return
         self._notify_manager(lambda: self._io.close())
         if not self._close_called and self._callback_after_file_close:
             # pyre-fixme[6]: For 1st param expected `() -> None` but got `(None) ->
@@ -339,6 +341,8 @@ class NonBlockingBufferedIO(io.IOBase):
         We add the `close` call to the file's queue to make sure that
         the file is not closed before all of the write jobs are complete.
         """
+        if self._close_called:
+            return
         self.flush()
         # Close the last buffer created by `flush`.
         self._notify_manager(lambda: self._buffers[-1].close())
