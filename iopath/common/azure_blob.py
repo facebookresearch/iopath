@@ -114,7 +114,7 @@ class AzureBlobReader(io.RawIOBase):
         and return data as described above.
         """
         if size == 0:
-            return bytes()
+            return b""
 
         try:
             if self._chunk is None or self._chunk_pos >= len(self._chunk):
@@ -125,7 +125,7 @@ class AzureBlobReader(io.RawIOBase):
             self._chunk_pos += len(data)
             return data
         except StopIteration:
-            return bytes()
+            return b""
 
     def seekable(self) -> bool:
         return False
@@ -203,7 +203,7 @@ class AzureBlobWriter(io.RawIOBase):
         # This uses block indexes (00000 ... 49999) as block ids
         # From the docs: block ids must be base64 strings, < 64 bytes in size
         # and the same length for all blocks in the same blob
-        block_id = "{0:05}".format(self._chunk_idx).encode("utf-8")
+        block_id = f"{self._chunk_idx:05}".encode("utf-8")
         block_id = base64.urlsafe_b64encode(block_id)
         return block_id.decode("utf-8")
 
@@ -511,12 +511,10 @@ class AzureBlobPathHandler(PathHandler):
                 ).astimezone()
 
                 if remote_modified <= local_modified and not force:
-                    logger.info(
-                        "URL {} was already cached in {}".format(path, local_path)
-                    )
+                    logger.info(f"URL {path} was already cached in {local_path}")
                     return local_path
 
-            logger.info("Caching {} ...".format(path))
+            logger.info(f"Caching {path} ...")
             tmp = local_path + ".tmp"
             # clean-up tmp if found, because if tmp exists, it must be a dirty
             # result of a previously process that didn't cleanup itself.
@@ -541,7 +539,7 @@ class AzureBlobPathHandler(PathHandler):
                 except Exception:
                     pass
 
-            logger.info("URL {} cached in {}".format(path, local_path))
+            logger.info(f"URL {path} cached in {local_path}")
             return local_path
 
     def _open(
@@ -710,9 +708,7 @@ class AzureBlobPathHandler(PathHandler):
         # pyre-fixme[66]: Exception handler type annotation `unknown` must extend
         #  BaseException.
         except azure_exceptions.AzureError as e:
-            raise OSError(
-                f"Error in rm path {path} - " f"{type(e).__name__}: {e}"
-            ) from e
+            raise OSError(f"Error in rm path {path} - {type(e).__name__}: {e}") from e
 
     def _close(self) -> None:
         """

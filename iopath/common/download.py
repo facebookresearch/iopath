@@ -30,17 +30,17 @@ def download(
         filename = url.split("/")[-1]
         if os.name == "nt" and "?" in filename:  # for windows
             filename = filename[: filename.index("?")]
-        assert len(filename), "Cannot obtain filename from url {}".format(url)
+        assert len(filename), f"Cannot obtain filename from url {url}"
     fpath = os.path.join(dir, filename)
     logger = logging.getLogger(__name__)
 
     if os.path.isfile(fpath):
-        logger.info("File {} exists! Skipping download.".format(filename))
+        logger.info(f"File {filename} exists! Skipping download.")
         return fpath
 
     tmp = fpath + ".tmp"  # download to a tmp file first, to be more atomic.
     try:
-        logger.info("Downloading from {} ...".format(url))
+        logger.info(f"Downloading from {url} ...")
         if progress:
             import tqdm
 
@@ -55,7 +55,7 @@ def download(
 
                 return inner
 
-            with tqdm.tqdm(  # type: ignore
+            with tqdm.tqdm(
                 unit="B", unit_scale=True, miniters=1, desc=filename, leave=True
             ) as t:
                 tmp, _ = request.urlretrieve(url, filename=tmp, reporthook=hook(t))
@@ -65,17 +65,17 @@ def download(
         statinfo = os.stat(tmp)
         size = statinfo.st_size
         if size == 0:
-            raise IOError("Downloaded an empty file from {}!".format(url))
+            raise OSError(f"Downloaded an empty file from {url}!")
         # download to tmp first and move to fpath, to make this function more
         # atomic.
         shutil.move(tmp, fpath)
-    except IOError:
-        logger.error("Failed to download {}".format(url))
+    except OSError:
+        logger.error(f"Failed to download {url}")
         raise
     finally:
         try:
             os.unlink(tmp)
-        except IOError:
+        except OSError:
             pass
 
     logger.info("Successfully downloaded " + fpath + ". " + str(size) + " bytes.")

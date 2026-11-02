@@ -19,7 +19,7 @@ from typing import Any, IO, Literal, overload, TypeAlias
 from urllib.parse import urlparse
 
 import aiofiles
-import portalocker  # type: ignore
+import portalocker
 from iopath.common.download import download
 from iopath.common.event_logger import EventLogger
 from iopath.common.non_blocking_io import NonBlockingIOManager
@@ -138,11 +138,11 @@ class LazyPath(os.PathLike[str]):
     def __getitem__(self, key: int | slice) -> str:
         if self._value is None:
             raise TypeError("Uninitialized LazyPath is not subscriptable.")
-        return self._value[key]  # type: ignore
+        return self._value[key]
 
     def __str__(self) -> str:
         if self._value is not None:
-            return self._value  # type: ignore
+            return self._value
         else:
             return super().__str__()
 
@@ -212,11 +212,11 @@ class PathHandler(EventLogger):
         """
         if self._strict_kwargs_check:
             if len(kwargs) > 0:
-                raise ValueError("Unused arguments: {}".format(kwargs))
+                raise ValueError(f"Unused arguments: {kwargs}")
         else:
             logger = logging.getLogger(__name__)
             for k, v in kwargs.items():
-                logger.warning("[PathManager] {}={} argument ignored".format(k, v))
+                logger.warning(f"[PathManager] {k}={v} argument ignored")
 
     def _get_supported_prefixes(self) -> list[str]:
         """
@@ -684,7 +684,7 @@ class NativePathHandler(PathHandler):
             file: a file-like object.
         """
         self._check_kwargs(kwargs)
-        return open(  # type: ignore
+        return open(
             self._get_path_with_cwd(path),
             mode,
             buffering=buffering,
@@ -757,7 +757,7 @@ class NativePathHandler(PathHandler):
         dst_path = self._get_path_with_cwd(dst_path)
         if os.path.exists(dst_path) and not overwrite:
             logger = logging.getLogger(__name__)
-            logger.error("Destination file {} already exists.".format(dst_path))
+            logger.error(f"Destination file {dst_path} already exists.")
             return False
 
         try:
@@ -765,7 +765,7 @@ class NativePathHandler(PathHandler):
             return True
         except Exception as e:
             logger = logging.getLogger(__name__)
-            logger.error("Error in file copy - {}".format(str(e)))
+            logger.error(f"Error in file copy - {str(e)}")
             return False
 
     def _mv(self, src_path: str, dst_path: str, **kwargs: Any) -> bool:
@@ -784,7 +784,7 @@ class NativePathHandler(PathHandler):
         dst_path = self._get_path_with_cwd(dst_path)
         if os.path.exists(dst_path):
             logger = logging.getLogger(__name__)
-            logger.error("Destination file {} already exists.".format(dst_path))
+            logger.error(f"Destination file {dst_path} already exists.")
             return False
 
         try:
@@ -792,7 +792,7 @@ class NativePathHandler(PathHandler):
             return True
         except Exception as e:
             logger = logging.getLogger(__name__)
-            logger.error("Error in move operation - {}".format(str(e)))
+            logger.error(f"Error in move operation - {str(e)}")
             return False
 
     def _symlink(self, src_path: str, dst_path: str, **kwargs: Any) -> bool:
@@ -811,16 +811,16 @@ class NativePathHandler(PathHandler):
         dst_path = self._get_path_with_cwd(dst_path)
         logger = logging.getLogger(__name__)
         if not os.path.exists(src_path):
-            logger.error("Source path {} does not exist".format(src_path))
+            logger.error(f"Source path {src_path} does not exist")
             return False
         if os.path.exists(dst_path):
-            logger.error("Destination path {} already exists.".format(dst_path))
+            logger.error(f"Destination path {dst_path} already exists.")
             return False
         try:
             os.symlink(src_path, dst_path)
             return True
         except Exception as e:
-            logger.error("Error in symlink - {}".format(str(e)))
+            logger.error(f"Error in symlink - {str(e)}")
             return False
 
     def _exists(self, path: str, **kwargs: Any) -> bool:
@@ -915,9 +915,7 @@ class HTTPURLHandler(PathHandler):
                 if part not in ("", ".")
             ]
             if ".." in url_path_parts:
-                raise ValueError(
-                    "URL path must not contain '..' components: {}".format(path)
-                )
+                raise ValueError(f"URL path must not contain '..' components: {path}")
 
             url_path = PurePosixPath(*url_path_parts)
             cache_root = Path(get_cache_dir(cache_dir))
@@ -935,15 +933,15 @@ class HTTPURLHandler(PathHandler):
             cached_resolved = cached.resolve()
             if not cached_resolved.is_relative_to(cache_root_resolved):
                 raise ValueError(
-                    "URL cache path must stay under cache directory: {}".format(path)
+                    f"URL cache path must stay under cache directory: {path}"
                 )
 
             cached_path = os.fspath(cached)
             with file_lock(cached_path):
                 if not os.path.isfile(cached_path):
-                    logger.info("Downloading {} ...".format(path))
+                    logger.info(f"Downloading {path} ...")
                     cached_path = download(path, os.fspath(dirname), filename=filename)
-            logger.info("URL {} cached in {}".format(path, cached_path))
+            logger.info(f"URL {path} cached in {cached_path}")
             self.cache_map[path] = cached_path
         return self.cache_map[path]
 
@@ -1206,7 +1204,7 @@ class PathManager:
         # pass enable mode to handler that will be logging
         # read, write operations separately.
         handler.set_logging(self._enable_logging)
-        bret = handler._open(path, mode, buffering=buffering, **kwargs)  # type: ignore
+        bret = handler._open(path, mode, buffering=buffering, **kwargs)
 
         kvs = self.__get_open_keys(path, mode, buffering)
         self.__log_telemetry_keys(handler, kvs)
@@ -1389,7 +1387,7 @@ class PathManager:
             local_path (str): a file path which exists on the local file system
         """
         path = os.fspath(path)
-        handler = self.get_path_handler(path)  # type: ignore
+        handler = self.get_path_handler(path)
         try:
             bret = handler._get_local_path(path, force=force, **kwargs)
         except TypeError:
@@ -1446,7 +1444,7 @@ class PathManager:
             bool: true if the path exists
         """
         handler = self.get_path_handler(path)
-        bret = handler._exists(path, **kwargs)  # type: ignore
+        bret = handler._exists(path, **kwargs)
         kvs = {"op": "exists", "path": path}
         self.__log_telemetry_keys(handler, kvs)
         return bret
@@ -1462,7 +1460,7 @@ class PathManager:
             bool: true if the path is a file
         """
         handler = self.get_path_handler(path)
-        bret = handler._isfile(path, **kwargs)  # type: ignore
+        bret = handler._isfile(path, **kwargs)
         kvs = {"op": "isfile", "path": path}
         self.__log_telemetry_keys(handler, kvs)
         return bret
@@ -1478,7 +1476,7 @@ class PathManager:
             bool: true if the path is a directory
         """
         handler = self.get_path_handler(path)
-        bret = handler._isdir(path, **kwargs)  # type: ignore
+        bret = handler._isdir(path, **kwargs)
         kvs = {"op": "isdir", "path": path}
         self.__log_telemetry_keys(handler, kvs)
         return bret
@@ -1505,7 +1503,7 @@ class PathManager:
             path (str): A URI supported by this PathHandler
         """
         handler = self.get_path_handler(path)
-        handler._mkdirs(path, **kwargs)  # type: ignore
+        handler._mkdirs(path, **kwargs)
         kvs = {"op": "mkdirs", "path": path}
         self.__log_telemetry_keys(handler, kvs)
 
@@ -1517,7 +1515,7 @@ class PathManager:
             path (str): A URI supported by this PathHandler
         """
         handler = self.get_path_handler(path)
-        handler._rm(path, **kwargs)  # type: ignore
+        handler._rm(path, **kwargs)
         kvs = {"op": "rm", "path": path}
         self.__log_telemetry_keys(handler, kvs)
 
@@ -1531,7 +1529,7 @@ class PathManager:
         # Copying across handlers is not supported.
         handler = self.get_path_handler(src_path)
         assert handler == self.get_path_handler(dst_path)
-        bret = handler._symlink(src_path, dst_path, **kwargs)  # type: ignore
+        bret = handler._symlink(src_path, dst_path, **kwargs)
         kvs = {"op": "symlink", "path": src_path, "dst_path": dst_path}
         self.__log_telemetry_keys(handler, kvs)
         return bret
@@ -1553,7 +1551,7 @@ class PathManager:
         handler_path = path or self._cwd
         assert handler_path is not None
         handler = self.get_path_handler(handler_path)
-        if handler._set_cwd(path, **kwargs):  # type: ignore
+        if handler._set_cwd(path, **kwargs):
             self._cwd = path
             bret = True
         else:
