@@ -38,6 +38,7 @@ class PathData:
 
     queue: Queue[Callable[[], object] | None]
     thread: Thread
+    result: concurrent.futures.Future[None]
 
 
 class NonBlockingIOManager:
@@ -101,10 +102,11 @@ class NonBlockingIOManager:
         if path not in self._path_to_data:
             # Initialize job queue and a polling thread
             queue = Queue()
-            t = Thread(target=self._poll_jobs, args=(queue,))
+            result = concurrent.futures.Future()
+            t = Thread(target=self._poll_jobs, args=(queue, result))
             t.start()
             # Store the `PathData`
-            self._path_to_data[path] = PathData(queue, t)
+            self._path_to_data[path] = PathData(queue, t, result)
 
         kwargs = {} if not self._buffered else {"buffering": buffering}
         #  a function.
@@ -118,23 +120,37 @@ class NonBlockingIOManager:
             **kwargs,
         )
 
-    def _poll_jobs(self, queue: Queue[Callable[[], object] | None]) -> None:
+    def _poll_jobs(
+        self,
+        queue: Queue[Callable[[], object] | None],
+        result: concurrent.futures.Future[None],
+    ) -> None:
         """
         A single thread runs this loop. It waits for an IO callable to be
         placed in a specific path's `Queue` where the queue contains
         callable functions. It then waits for the IO job to be completed
         before looping to ensure write order.
         """
-        while True:
-            # `func` is a callable function (specifically a lambda function)
-            # and can be any of:
-            #   - func = file.write(b)
-            #   - func = file.close()
-            #   - func = None
-            func = queue.get()  # Blocks until item read.
-            if func is None:  # Thread join signal.
-                break
-            self._pool.submit(func).result()  # Wait for job to finish.
+        try:
+            while True:
+                # `func` is a callable function (specifically a lambda function)
+                # and can be any of:
+                #   - func = file.write(b)
+                #   - func = file.close()
+                #   - func = None
+                func = queue.get()  # Blocks until item read.
+                if func is None:  # Thread join signal.
+                    break
+                self._pool.submit(func).result()  # Wait for job to finish.
+        except Exception as error:
+            # Stop this path's queued work, including dependent callbacks,
+            # but retain the failure for the thread joining us.
+            result.set_exception(error)
+        except BaseException as error:
+            result.set_exception(error)
+            raise
+        else:
+            result.set_result(None)
 
     def _join(self, path: str | None = None) -> bool:
         """
@@ -161,6 +177,11 @@ class NonBlockingIOManager:
                 path_data = self._path_to_data.pop(_path)
                 path_data.queue.put(None)
                 path_data.thread.join()
+                error = path_data.result.exception()
+                if error is not None:
+                    logger = logging.getLogger(__name__)
+                    logger.error(f"Async IO for {_path} failed.", exc_info=error)
+                    success = False
             except Exception:
                 logger = logging.getLogger(__name__)
                 logger.exception(f"`NonBlockingIO` thread for {_path} failed to join.")

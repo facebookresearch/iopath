@@ -295,6 +295,64 @@ class TestNativeIOAsync(unittest.TestCase):
         finally:
             self.assertTrue(self._pathmgr.async_close())
 
+    def test_async_failure_status(self) -> None:
+        def check_failure(operation: str, join_first: bool) -> None:
+            manager = PathManager()
+            callbacks = []
+
+            class FailingFile(io.BytesIO):
+                def write(self, data):
+                    if operation == "write":
+                        raise OSError("write failed")
+                    return super().write(data)
+
+                def close(self):
+                    if operation == "close" and not self.closed:
+                        raise OSError("close failed")
+                    super().close()
+
+            def callback():
+                if operation == "callback":
+                    raise OSError("callback failed")
+                callbacks.append("failed path")
+
+            stream = FailingFile()
+            failed = os.path.join(self._tmpdir, "failed.bin")
+            healthy = os.path.join(self._tmpdir, "healthy.bin")
+            handler = manager.get_path_handler(failed)
+            open_file = handler._open
+
+            def open_with_failure(path, mode, **kwargs):
+                return stream if path == failed else open_file(path, mode, **kwargs)
+
+            try:
+                with patch.object(handler, "_open", side_effect=open_with_failure):
+                    with manager.opena(
+                        failed, "wb", callback_after_file_close=callback
+                    ) as writer:
+                        writer.write(b"checkpoint")
+                    with manager.opena(healthy, "wb") as healthy_writer:
+                        healthy_writer.write(b"complete")
+                if join_first:
+                    success = manager.async_join(failed)
+                    self.assertTrue(manager.async_join(healthy))
+                else:
+                    success = manager.async_close()
+            finally:
+                manager.async_close()
+                io.IOBase.close(writer)
+                io.IOBase.close(healthy_writer)
+                io.BytesIO.close(stream)
+            self.assertFalse(success)
+            self.assertEqual(callbacks, [])
+            with open(healthy, "rb") as result:
+                self.assertEqual(result.read(), b"complete")
+
+        for operation in ("write", "close", "callback"):
+            for join_first in (False, True):
+                with self.subTest(operation=operation, join_first=join_first):
+                    check_failure(operation, join_first)
+
     def test_non_blocking_io_seekable(self) -> None:
         # pyre-fixme[6]: For 1st argument expected `typing_extensions.LiteralString`
         #  but got `Optional[str]`.
@@ -364,6 +422,28 @@ class TestNonBlockingIO(unittest.TestCase):
     def test_select_io(self) -> None:
         self.assertEqual(self._io_manager._IO, NonBlockingIO)
         self.assertEqual(self._buffered_io_manager._IO, NonBlockingBufferedIO)
+
+    def test_buffered_write_failure_status(self) -> None:
+        manager = NonBlockingIOManager(buffered=True)
+        stream = io.BytesIO()
+        callbacks = []
+        writer = manager.get_non_blocking_io(
+            "failed",
+            stream,
+            callback_after_file_close=lambda: callbacks.append(True),
+            buffering=2,
+        )
+        try:
+            with patch.object(stream, "write", side_effect=OSError("write failed")):
+                with writer:
+                    writer.write(b"checkpoint")
+                success = manager._join()
+        finally:
+            manager._close_thread_pool()
+            io.IOBase.close(writer)
+            stream.close()
+        self.assertFalse(success)
+        self.assertEqual(callbacks, [])
 
     def test_io_manager(self) -> None:
         # pyre-fixme[6]: For 1st argument expected `typing_extensions.LiteralString`
