@@ -7,7 +7,7 @@ import logging
 import os
 import shutil
 import types
-from datetime import datetime, timedelta
+from datetime import timedelta
 from functools import partial
 from typing import Any, IO
 
@@ -56,7 +56,7 @@ def s3_close_and_upload(
     # pyre-fixme[66]: Exception handler type annotation `unknown` must extend
     #  BaseException.
     except botocore.exceptions.ClientError as e:
-        raise OSError(f"Error in file upload - {e}" f"{type(e).__name__}: {e}") from e
+        raise OSError(f"Error in file upload - {e}{type(e).__name__}: {e}") from e
 
 
 class S3PathHandler(PathHandler):
@@ -245,12 +245,10 @@ class S3PathHandler(PathHandler):
                     # Better fix: set last modified time via the remote object's last modified time,
                     # in download_file().
                     if (local_dt - remote_dt) > dt.timedelta(minutes=0):
-                        logger.info(
-                            "URL {} was already cached in {}".format(path, local_path)
-                        )
+                        logger.info(f"URL {path} was already cached in {local_path}")
                         return local_path
 
-            logger.info("Caching {} ...".format(path))
+            logger.info(f"Caching {path} ...")
             tmp = local_path + ".tmp"
             # clean-up tmp if found, because if tmp exists, it must be a dirty
             # result of a previously process that didn't cleanup itself.
@@ -275,7 +273,7 @@ class S3PathHandler(PathHandler):
                 except Exception:
                     pass
 
-            logger.info("URL {} cached in {}".format(path, local_path))
+            logger.info(f"URL {path} cached in {local_path}")
             return local_path
 
     def _copy_from_local(
@@ -302,7 +300,7 @@ class S3PathHandler(PathHandler):
 
         if not overwrite and self._exists(dst_path):
             logger = logging.getLogger(__name__)
-            logger.error("Error: Destination path {} already exists.".format(dst_path))
+            logger.error(f"Error: Destination path {dst_path} already exists.")
             return False
 
         bucket, s3_path = self._parse_uri(dst_path)
@@ -314,7 +312,7 @@ class S3PathHandler(PathHandler):
         #  BaseException.
         except botocore.exceptions.ClientError as e:
             logger = logging.getLogger(__name__)
-            logger.error("Error in file upload - {}".format(str(e)))
+            logger.error(f"Error in file upload - {str(e)}")
             return False
 
     def _decorate_buf_with_s3_methods(
@@ -467,7 +465,7 @@ class S3PathHandler(PathHandler):
 
         if not overwrite and self._exists(dst_path):
             logger = logging.getLogger(__name__)
-            logger.error("Error: Destination path {} already exists.".format(dst_path))
+            logger.error(f"Error: Destination path {dst_path} already exists.")
             return False
 
         src_bucket, src_s3_path = self._parse_uri(src_path)
@@ -488,7 +486,7 @@ class S3PathHandler(PathHandler):
             return True
         except Exception as e:
             logger = logging.getLogger(__name__)
-            logger.error("Error in file copy - {}".format(str(e)))
+            logger.error(f"Error in file copy - {str(e)}")
             return False
 
     def _head_object(self, path: str) -> dict[str, Any] | None:
@@ -585,9 +583,7 @@ class S3PathHandler(PathHandler):
         # pyre-fixme[66]: Exception handler type annotation `unknown` must extend
         #  BaseException.
         except botocore.exceptions.ClientError as e:
-            raise OSError(
-                f"Error in ls path {path} - " f"{type(e).__name__}: {e}"
-            ) from e
+            raise OSError(f"Error in ls path {path} - {type(e).__name__}: {e}") from e
 
     def _mkdirs(self, path: str, **kwargs: Any) -> None:
         """
@@ -610,7 +606,7 @@ class S3PathHandler(PathHandler):
         #  BaseException.
         except botocore.exceptions.ClientError as e:
             raise OSError(
-                f"Error in mkdirs path {path} - " f"{type(e).__name__}: {e}"
+                f"Error in mkdirs path {path} - {type(e).__name__}: {e}"
             ) from e
 
     def _rm(self, path: str, **kwargs: Any) -> None:
@@ -629,9 +625,7 @@ class S3PathHandler(PathHandler):
         # pyre-fixme[66]: Exception handler type annotation `unknown` must extend
         #  BaseException.
         except botocore.exceptions.ClientError as e:
-            raise OSError(
-                f"Error in rm path {path} - " f"{type(e).__name__}: {e}"
-            ) from e
+            raise OSError(f"Error in rm path {path} - {type(e).__name__}: {e}") from e
 
 
 class S3ChunkReadIO(io.BufferedIOBase):
