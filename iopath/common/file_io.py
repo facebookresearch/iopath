@@ -850,6 +850,10 @@ class NativePathHandler(PathHandler):
 
     def _rm(self, path: str, **kwargs: Any) -> None:
         self._check_kwargs(kwargs)
+        path = os.fspath(path)
+        if self._cwd and path and not os.path.isabs(path):
+            # Preserve path components for filesystem resolution during removal.
+            path = os.path.join(self._cwd, path)
         os.remove(path)
 
     def _set_cwd(self, path: str | None, **kwargs: Any) -> bool:
