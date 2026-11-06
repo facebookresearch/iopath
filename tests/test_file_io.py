@@ -309,6 +309,94 @@ class TestNativeIO(unittest.TestCase):
             self.assertEqual(self._tmpfile_contents, buf, "is " + buf)
 
 
+class TestNativeRemoveWithCwd(unittest.TestCase):
+    def setUp(self) -> None:
+        tmpdir = tempfile.TemporaryDirectory()
+        self.addCleanup(tmpdir.cleanup)
+        process_dir = os.path.join(tmpdir.name, "process")
+        manager_dir = os.path.join(tmpdir.name, "manager")
+        os.makedirs(process_dir)
+        os.makedirs(manager_dir)
+        self.addCleanup(os.chdir, os.getcwd())
+        os.chdir(process_dir)
+
+        self.pathmgr = PathManager()
+        self.pathmgr.set_cwd(manager_dir)
+        self.process_file = os.path.join(process_dir, "output.txt")
+        self.manager_file = os.path.join(manager_dir, "output.txt")
+        with open(self.process_file, "w") as f:
+            f.write("process output")
+        with self.pathmgr.open("output.txt", "w") as f:
+            f.write("manager output")
+
+    def test_relative_path(self) -> None:
+        self.assertTrue(self.pathmgr.exists("output.txt"))
+        self.pathmgr.rm("output.txt")
+        self.assertFalse(self.pathmgr.exists("output.txt"))
+        self.assertFalse(os.path.exists(self.manager_file))
+        with open(self.process_file) as f:
+            self.assertEqual(f.read(), "process output")
+
+    def test_missing_relative_path(self) -> None:
+        os.remove(self.manager_file)
+        with self.assertRaises(FileNotFoundError):
+            self.pathmgr.rm("output.txt")
+        self.assertTrue(os.path.exists(self.process_file))
+
+    def test_absolute_path(self) -> None:
+        self.pathmgr.rm(self.process_file)
+        self.assertFalse(os.path.exists(self.process_file))
+        self.assertTrue(os.path.exists(self.manager_file))
+
+    def test_reset_cwd(self) -> None:
+        self.pathmgr.set_cwd(None)
+        self.pathmgr.rm("output.txt")
+        self.assertFalse(os.path.exists(self.process_file))
+        self.assertTrue(os.path.exists(self.manager_file))
+
+    def test_empty_path(self) -> None:
+        with self.assertRaises(FileNotFoundError):
+            self.pathmgr.rm("")
+
+    def test_empty_lazy_path(self) -> None:
+        with self.assertRaises(FileNotFoundError):
+            self.pathmgr.rm(LazyPath(lambda: ""))
+
+    def test_falsey_pathlike(self) -> None:
+        class FalseyPath(LazyPath):
+            def __bool__(self) -> bool:
+                return False
+
+        self.pathmgr.rm(FalseyPath(lambda: "output.txt"))
+        self.assertFalse(os.path.exists(self.manager_file))
+        self.assertTrue(os.path.exists(self.process_file))
+
+    def test_invalid_path_components(self) -> None:
+        for path in ("output.txt/", "output.txt/.", "missing/../output.txt"):
+            with self.subTest(path=path):
+                with self.assertRaises(OSError):
+                    self.pathmgr.rm(path)
+                self.assertTrue(os.path.exists(self.manager_file))
+                self.assertTrue(os.path.exists(self.process_file))
+
+    @unittest.skipUnless(os.name == "posix", "Requires POSIX symlink semantics")
+    def test_symlink_parent(self) -> None:
+        manager_dir = os.path.dirname(self.manager_file)
+        outside = os.path.join(manager_dir, "outside")
+        nested = os.path.join(outside, "nested")
+        os.makedirs(nested)
+        target = os.path.join(outside, "output.txt")
+        with open(target, "w") as f:
+            f.write("target")
+        os.symlink(nested, os.path.join(manager_dir, "link"))
+
+        self.pathmgr.rm("link/../output.txt")
+
+        self.assertFalse(os.path.exists(target))
+        self.assertTrue(os.path.exists(self.manager_file))
+        self.assertTrue(os.path.exists(self.process_file))
+
+
 class TestHTTPIO(unittest.TestCase):
     _remote_uri = "https://www.facebook.com"
     _filename = "facebook.html"
